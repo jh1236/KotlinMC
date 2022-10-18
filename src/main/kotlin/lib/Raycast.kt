@@ -8,44 +8,57 @@ import enums.Blocks
 import enums.Entities
 import enums.blockTag
 import gunGame.asIntersects
+import lib.debug.Log
 import structure.Fluorite
 import utils.Selector
 import utils.loc
 import utils.rel
 import utils.score.Score
 
-fun raycast(change: Float, forEach: (Score) -> Unit = {}, onHit: () -> Unit = {}, count: Int = 1000) {
-    val range = Fluorite.getNewFakeScore("count", count)
+val rangeScore = Fluorite.getNewFakeScore("count")
+
+fun raycast(change: Float, forEach: (Score) -> Unit = {}, onHit: () -> Unit = {}, count: Int = -1) {
+    if (count >= 0) {
+        rangeScore.set(count)
+    }
     Do {
-        forEach(range)
-        If((rel() isBlock blockTag("jh1236:air")).not()) {
-            range.set(0)
+        forEach(rangeScore)
+        If(rangeScore eq 0) {
             onHit()
         }
-    }.moved(loc(0, 0, change)).While(range gte 0)
+        If((rel() isBlock blockTag("jh1236:air")).not()) {
+            rangeScore.set(0)
+            onHit()
+        }
+        rangeScore -= 1
+    }.moved(loc(0, 0, change)).While(rangeScore gte 0)
 }
 
-val range = Fluorite.getNewFakeScore("count")
 fun raycastEntity(
     change: Float,
     forEach: (Score) -> Unit = {},
     onHit: () -> Unit = {},
-    count: Int = 1000,
+    count: Int = -1,
     onWallHit: (() -> Unit)? = null
 ) {
-    range.set(count)
+    if (count >= 0) {
+        rangeScore.set(count)
+    }
     with(Command) {
         Do {
-            forEach(range)
+            forEach(rangeScore)
+            If(rangeScore eq 0) {
+                onWallHit?.let { it() }
+            }
             execute().unless(rel() isBlock blockTag("jh1236:air")).run {
                 onWallHit?.let { it() }
-                range.set(0)
+                rangeScore.set(0)
             }
             If(rel() isBlock Blocks.REDSTONE_BLOCK) {
                 summon(Entities.MARKER, loc(0, 0, -.25), "{Tags:[particle]}")
             }
             execute().asIntersects(Selector('e')).run(onHit)
-            range -= 1
-        }.moved(loc(0, 0, change)).While(range gte 0)
+            rangeScore -= 1
+        }.moved(loc(0, 0, change)).While(rangeScore gte 0)
     }
 }

@@ -17,6 +17,7 @@ import utils.loc
 import utils.rel
 import utils.score.Objective
 
+val maxHealth = Objective("maxHealth")
 val health = Objective("health")
 val timeSinceHit = Objective("timeSinceHit")
 val playingTag = PlayerTag("playing")
@@ -36,12 +37,9 @@ fun Execute.ifPlaying(player: Selector = self): Execute {
 }
 
 fun healthTick() {
-    Command.execute().As('a'[""].hasTag(playingTag)).If(health[self] lte 2800).If(timeSinceHit[self] gte 40).run {
-        health[self] += 13
-    }
-    Command.execute().As('a'[""].hasTag(playingTag)).If(health[self] inRange 2800..2999).If(timeSinceHit[self] gte 40)
+    Command.execute().As('a'[""].hasTag(playingTag)).If(health[self] lt maxHealth[self]).If(timeSinceHit[self] gte 40)
         .run {
-            health[self] += 1
+            health[self] += 10
         }
     Command.execute().As('a'[""].hasTag(playingTag)).run {
         timeSinceHit[self] += 1
@@ -64,6 +62,7 @@ private val dieFunc = McFunction("jh1236:health/die") {
             gamemode().adventure(self)
             deadTag.remove(self)
             health[self] = 3000
+            maxHealth[self] = 3000
             tp(self, abs(-16, 4, -69))
         }
     }

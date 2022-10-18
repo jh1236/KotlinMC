@@ -4,25 +4,19 @@ import abstractions.*
 import abstractions.flow.If
 import commands.Command
 import enums.*
-import gunGame.deathEvent
-import gunGame.playingTag
-import gunGame.self
-import lib.copyHeldItemToBlockAndRun
-import lib.debug.Log
-import lib.get
-import lib.idScore
+import gunGame.*
+import lib.*
 import structure.Fluorite
 import structure.McFunction
-import utils.Selector
-import utils.abs
-import utils.loc
-import utils.rel
+import utils.*
+import utils.score.Score
 
 lateinit var pistol: ModularCoasWeapon
 lateinit var tomeOfPetrification: ModularCoasWeapon
 lateinit var teleport: AbstractCoasWeapon
 lateinit var smokeCloud: AbstractWeapon
 lateinit var boom: AbstractWeapon
+lateinit var stealth: AbstractWeapon
 
 
 fun loadSecondaries() {
@@ -58,16 +52,64 @@ fun loadSecondaries() {
         .asSecondary()
         .done()
 
-    teleport = object : AbstractCoasWeapon("Tome of Teleportation", 200) {
-        override fun shoot() {
-            applyCoolDown(40)
+    teleport = object : ModularCoasWeapon("Tome of Teleportation", 200) {
+        private fun calcDistance(): Score {
+            val distance = Fluorite.getNewFakeScore("distance")
+            val max = Fluorite.getNewFakeScore("max")
+            max.set(self.data["SelectedItem.tag.jh1236.cooldown.max"])
+            val lastShot = Fluorite.getNewFakeScore("gt")
+            distance.set { Command.time().query.gametime }
+            lastShot.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
+            distance -= lastShot
+            distance.minOf(100)
+            distance *= 2
+            distance /= 5
+            distance.maxOf(4)
+            return distance
+        }
+
+        val func = McFunction("secondary/tome_of_teleportation/tick") {
+            val ammoDisplay = calcDistance()
+            rangeScore.set(ammoDisplay)
+            //TODO: stop being lazy
+            Command.execute().anchored(Anchor.EYES).run {
+                raycast(.25f,
+                    {},
+                    { Command.raw("particle minecraft:soul_fire_flame ^ ^ ^-0.25 0.2 0.4 0.2 0.02 0 force @s") })
+            }
+            ammoDisplay /= 4
             copyHeldItemToBlockAndRun {
-                it["tag.jh1236.range"] = { Command.time().query.gametime }
+                it["Count"] = ammoDisplay
             }
         }
 
-        override fun give(player: Selector) {
+        init {
+            Fluorite.tickFile += {
+                Command.execute()
+                    .asat('a'["nbt = {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}", "predicate = jh1236:ready"])
+                    .run(func)
+            }
+            withParticle(Particles.FALLING_DUST(Blocks.LIGHT_BLUE_CONCRETE))
+            asSecondary()
+            withCustomModelData(105)
+            withCooldown(1.0)
+            onWallHit {
+                Command.tp(self, loc(0, 0, -.25))
+                Command.playsound("entity.enderman.teleport").master(self)
+            }
+            withPiercing()
+            setup()
+        }
 
+        override fun shoot() {
+            rangeScore.set(40)
+            //TODO: stop being lazy
+            Command.raw("particle minecraft:reverse_portal ~ ~.5 ~ 0.1 0.5 0.1 0.02 200 force @a")
+            rangeScore.set(calcDistance())
+            super.shoot()
+            copyHeldItemToBlockAndRun {
+                it[""] = "{ Count:1 }"
+            }
         }
     }
 
@@ -75,9 +117,21 @@ fun loadSecondaries() {
         .withProjectile(1)
         .withRange(50).withCustomModelData(4).addSound("minecraft:block.enchantment_table.use", 1.3).onWallHit {
         }.onWallHit {
-            Command.summon(Entities.CREEPER, rel(), "{ExplosionRadius:-1, Fuse:0b, ignited:1b}")
+            val selector = 'a'["distance=..10", "limit = 1", "sort = nearest"].hasTag(playingTag)
+            Command.execute().facing.entity(selector, Anchor.EYES).positioned.As(selector.hasTag(playingTag)).rotated(
+                Vec2("~", "0")
+            )
+                .positioned(loc(0, 0, -.3)).run {
+                    repeat(1) {
+                        Command.summon(Entities.CREEPER, rel(0, 0.4, 0), "{ExplosionRadius:-1, Fuse:0b, ignited:1b}")
+                    }
+                }
         }.onEntityHit { _, _ ->
-            Command.summon(Entities.CREEPER, rel(), "{ExplosionRadius:-1, Fuse:0b, ignited:1b}")
+            Command.execute().asat('a'["distance=..10"].hasTag(playingTag)).run {
+                repeat(1) {
+                    Command.summon(Entities.CREEPER, rel(0, .5, 0), "{ExplosionRadius:-1, Fuse:0b, ignited:1b}")
+                }
+            }
         }.done()
 
 
@@ -99,7 +153,6 @@ fun loadSecondaries() {
             self.data["{}"] = "{PickupDelay:85s}"
             val uuidScore = Fluorite.getNewFakeScore("uuid")
             uuidScore.set(self.data["Thrower[0]"])
-            Log.info(self.data["PickupDelay"])
             Command.execute().As('a'[""]).run {
                 val myUUID = Fluorite.getNewFakeScore("uuid1")
                 myUUID.set(self.data["UUID[0]"])
@@ -145,6 +198,44 @@ fun loadSecondaries() {
 
         override fun give(player: Selector) {
             Command.give(self, Items.BLACK_DYE.nbt("{jh1236:{weapon:$myId}}"))
+        }
+
+    }
+
+    stealth = object : AbstractWeapon(0) {
+        val invisTag = PlayerTag("invis")
+        val func = McFunction("secondary/stealth") {
+            If(self.notHasTag(invisTag)) {
+                health[self].minOf(1000)
+                maxHealth[self] = 1000
+            }
+            Command.effect().give(self, Effects.INVISIBILITY, 1, 0, true)
+            val gt = Fluorite.getNewFakeScore("gametime")
+            gt.set { Command.time().query.gametime }
+            gt %= 10
+            If(gt eq 0) {
+                Command.particle(Particles.END_ROD, rel(0, .5, 0), abs(0.2, .5, 0.2), 0.0, 1)
+            }
+            invisTag.add(self)
+        }
+        val endFunc = McFunction("secondary/stealth/end") {
+            Command.effect().clear(self, Effects.INVISIBILITY)
+            maxHealth[self] = 3000
+            invisTag.remove(self)
+        }
+
+        init {
+            Fluorite.tickFile += {
+                Command.execute().asat('a'["nbt = {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}"].hasTag(playingTag))
+                    .run(func)
+                Command.execute().asat('a'["nbt =! {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}"].hasTag(invisTag))
+                    .run(endFunc)
+            }
+        }
+
+
+        override fun give(player: Selector) {
+            Command.give(self, Items.SUGAR.nbt("{jh1236:{weapon:$myId}}"))
         }
 
     }

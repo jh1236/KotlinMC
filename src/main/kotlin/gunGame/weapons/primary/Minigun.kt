@@ -65,7 +65,7 @@ class Minigun : ModularCoasWeapon("Minigun", 240) {
                     resetMgAmmo()
                     repeat(9) {
                         Command.execute().If(self hasData "Inventory[{Slot:${it}b, tag:{jh1236:{weapon:$myId}}}]").run {
-                            applyCooldownToSlot(cooldown, "hotbar.$it")
+                            applyCooldownToSlot(10, "hotbar.$it")
                         }
                     }
                     score[self] = 0
@@ -76,14 +76,8 @@ class Minigun : ModularCoasWeapon("Minigun", 240) {
                     minigunTag.add(self)
                 }
             Command.execute().asat('a'["scores = {$score = 1}", "predicate = jh1236:ready"].hasTag(playingTag)).run {
-                If(self["nbt = {jh1236:{ammo:{value:50}}}"]) {
-                    applyCoolDown(reload)
-                    Command.playsound("block.conduit.deactivate").master(self, rel(), 1.0, 0.0)
-                }.Else {
-                    resetMgAmmo()
-                    applyCoolDown(cooldown)
-                }
-
+                resetMgAmmo()
+                applyCoolDown(10)
                 Log.info(self.data["SelectedItem.tag.jh1236.ammo.value"])
                 score[self] = 0
             }
@@ -97,6 +91,9 @@ class Minigun : ModularCoasWeapon("Minigun", 240) {
         minigunTag.add(self)
         fire = McFunction("jh1236:primary/minigun/shoot") {
             super.shoot()
+            If(self["nbt = {SelectedItem:{tag:{jh1236:{ammo:{value:50}}}}}"]) {
+                Command.playsound("block.conduit.deactivate").master(self, rel(), 1.0, 0.0)
+            }
         }
     }
 }

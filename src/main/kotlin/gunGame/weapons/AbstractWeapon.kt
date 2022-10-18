@@ -4,7 +4,7 @@ import abstractions.PlayerTag
 import structure.McFunction
 import utils.Selector
 
-abstract class AbstractWeapon(protected val damage: Int, var secondary: Boolean = false) {
+abstract class AbstractWeapon(val damage: Int, var secondary: Boolean = false) {
     companion object {
         private val listOfWeapons = arrayListOf<AbstractWeapon>()
         var id = 0
@@ -29,7 +29,7 @@ abstract class AbstractWeapon(protected val damage: Int, var secondary: Boolean 
     }
 
     protected val safeTag = PlayerTag("safe")
-    protected val myId: Int = ++id
+    val myId: Int = ++id
 
 
     abstract fun give(player: Selector);

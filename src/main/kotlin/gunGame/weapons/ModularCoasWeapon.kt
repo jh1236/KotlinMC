@@ -6,11 +6,8 @@ import abstractions.flow.Tree
 import commands.Command
 import enums.*
 import gunGame.*
-import lib.copyHeldItemToBlockAndRun
+import lib.*
 import lib.debug.Log
-import lib.get
-import lib.idScore
-import lib.raycastEntity
 import structure.Fluorite
 import structure.McFunction
 import utils.*
@@ -29,6 +26,7 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
     }
 
 
+    protected var piercing = false
     protected val projectile = PlayerTag("projectile$myId")
     protected var particleCount: Int = 1
     protected var sound = arrayListOf<Pair<String, Double>>()
@@ -37,7 +35,7 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
     protected var cooldown = 0
     protected var clipSize = 1
     protected var bulletsPerShot = 1
-    protected var range = 250
+    protected var range = -1
     protected var spread = 0.0
     protected var onWallHit: ((Selector) -> Unit)? = null
     protected var afterShot: (() -> Unit)? = null
@@ -55,6 +53,11 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
 
     fun asSecondary(): ModularCoasWeapon {
         this.secondary = true
+        return this
+    }
+
+    fun withPiercing(): ModularCoasWeapon {
+        this.piercing = true
         return this
     }
 
@@ -225,10 +228,9 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
                     }
                     onEntityHit?.let { it(self, 'a'[""].hasTag(shootTag)) }
                 }
-                If (hit eq 1) {
-
+                If(hit eq 1) {
+                    kill()
                 }
-                kill()
                 projectileLife[self] += 1
                 If(projectileLife[self] gte (range / (projectileSpeed * .3)).toInt()) {
                     onWallHit?.let { it('a'[""].hasTag(shootTag)) }
@@ -249,12 +251,24 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
     }
 
     private fun rayCast() {
-        raycastEntity(.25f, { Command.particle(particle, rel(), abs(0, 0, 0), 0.0, particleCount) }, {
+        raycastEntity(.25f, {
+            Command.particle(particle, rel(), abs(0, 0, 0), 0.0, particleCount).force(
+                if (cooldown > 1) 'a'[""] else 'a'[""].notHasTag(
+                    shootTag
+                )
+            )
+            Command.execute().unless(loc(0, 0, 0.25) isBlock Blocks.AIR)
+                .run { Command.raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a") }
+        }, {
             Command.execute().ifPlaying(self.notHasTag(shootTag).notHasTag(safeTag)).run {
                 safeTag.add(self)
                 damageSelf(damage)
                 onEntityHit?.let {
                     it(self, 'a'[""].hasTag(shootTag))
+                }
+                if (!piercing) {
+                    onWallHit?.let { it(self) }
+                    rangeScore.set(0)
                 }
             }
         }, range * 4, onWallHit = { onWallHit?.let { it(self) } })

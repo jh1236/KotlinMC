@@ -3,6 +3,7 @@ package gunGame.maps
 import abstractions.flow.If
 import abstractions.flow.Switch
 import commands.Command
+import gunGame.maxHealth
 import gunGame.playingTag
 import gunGame.self
 import gunGame.weapons.AbstractWeapon
@@ -39,6 +40,7 @@ fun spawnFuncSetup() {
                 weapon.give(self)
             }
         }
+
 
 
         Switch(Fluorite.getNewFakeScore("map"), allowDuplicateMatches = true).case(1) {

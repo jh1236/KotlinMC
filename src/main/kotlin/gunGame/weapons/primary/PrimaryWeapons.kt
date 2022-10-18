@@ -18,7 +18,6 @@ import utils.rel
 import utils.score.Objective
 
 
-val ninjaSword = Objective("useIronSword", Criteria.useItem(Items.IRON_SWORD))
 lateinit var sniper: ModularCoasWeapon
 lateinit var shotgun: ModularCoasWeapon
 lateinit var bazooka: ModularCoasWeapon
@@ -29,7 +28,7 @@ lateinit var rifle: ModularCoasWeapon
 
 fun loadPrimaries() {
     sniper = ModularCoasWeapon("Sniper", 4000).withCooldown(5.0).withParticle(Particles.END_ROD)
-        .addSound("item.shield.block", 1.2).withCustomModelData(1).withRange(200).done()
+        .addSound("item.shield.block", 1.2).withCustomModelData(1).withRange(200).withPiercing().done()
 
     shotgun = ModularCoasWeapon("Shotgun", 500).withParticle(Particles.CRIT).withReload(3.75).withCooldown(.15)
         .withClipSize(2).withSpread(5.0).withBulletsPerShot(8).addSound("entity.generic.explode", 1.4)
@@ -39,7 +38,7 @@ fun loadPrimaries() {
         ModularCoasWeapon("Bazooka", 6000).withCooldown(4.0).withParticle(Particles.LARGE_SMOKE, 10).withProjectile(2)
             .withRange(100).withCustomModelData(3).addSound("minecraft:entity.firework_rocket.launch", 0.0)
             .withSplash(3.0).onWallHit { bazookaHitsWall() }
-            .onEntityHit { _, _ -> bazookaHitsWall();Command.kill(self) }.done()
+            .onEntityHit { _, _ -> bazookaHitsWall() }.done()
 
     miniGun = Minigun()
 
@@ -66,7 +65,6 @@ fun loadPrimaries() {
                 tomeHitsWall()
             }.onEntityHit { _, _ ->
                 tomeHitsWall()
-                Command.kill(self)
             }.onProjectileTick {
                 Command.execute().lerpFacing('p'[""].notHasTag(shootTag).hasTag(playingTag), 1, 7).run.tp(
                     self, rel(), Vec2("~", "~")

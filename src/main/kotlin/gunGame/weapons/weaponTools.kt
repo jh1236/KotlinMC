@@ -7,7 +7,6 @@ import abstractions.variables.NBTTypes
 import commands.Command
 import gunGame.playingTag
 import gunGame.self
-import gunGame.weapons.primary.Minigun
 import internal.commands.impl.execute.Execute
 import internal.conditionals.Conditional
 import lib.applyNbtToHeldItem
@@ -19,6 +18,7 @@ import structure.ExternalFile
 import structure.Fluorite
 import structure.McFunction
 import utils.Selector
+import utils.rel
 import utils.score.ScoreConstant
 
 val shootTag = PlayerTag("shot")
@@ -37,7 +37,7 @@ fun coolDownSetup() {
 val applyCoolDown = McMethod("apply_cd", 1) { (coolDown) ->
     with(Command) {
         If(coolDown gte 10000) { coolDown.set(20) }
-        If(self["tag = noCooldown"]) { coolDown.set(1) }
+        If(self["tag = noCooldown"]) { coolDown.set(0) }
         val gameTime = Fluorite.getNewGarbageScore()
         gameTime.set { time().query.gametime }
         gameTime += coolDown
@@ -93,8 +93,7 @@ fun coolDownTick() {
                 val max = Fluorite.getNewFakeScore("max")
                 max.set(self.data["SelectedItem.tag.jh1236.cooldown.max"])
                 If(gameTime gte coolDown) {
-                    execute().unless(self["nbt = {SelectedItem:{tag:{jh1236:{weapon:${Minigun.myId}}}}}"])
-                        .run { playsound("block.note_block.pling").player(self) }
+                    If(max gt 1) { playsound("block.note_block.pling").player(self, rel(), 1.0, 2.0) }
                     applyNbtToHeldItem("{jh1236:{ready:1b}}")
                 }
                 xp().set(self, 10).levels

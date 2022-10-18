@@ -76,7 +76,7 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/../McFunction/out/artifacts/fluoriteLang.jar!/" />
+          <root url="jar://$MODULE_DIR$/../McFunction/out/artifacts/McFunction.main.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

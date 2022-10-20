@@ -13,10 +13,12 @@ import utils.score.Score
 
 lateinit var pistol: ModularCoasWeapon
 lateinit var tomeOfPetrification: ModularCoasWeapon
-lateinit var teleport: AbstractCoasWeapon
+lateinit var teleport: ModularCoasWeapon
 lateinit var smokeCloud: AbstractWeapon
 lateinit var boom: AbstractWeapon
 lateinit var stealth: AbstractWeapon
+lateinit var staff: ModularCoasWeapon
+lateinit var medusa: 
 
 
 fun loadSecondaries() {
@@ -30,6 +32,37 @@ fun loadSecondaries() {
         .withRange(50)
         .asSecondary()
         .done()
+    
+    staff = object: ModularCoasWeapon("staff", 25) {
+        val staffTag = PlayerTag("staff")
+        val fireFunc = McFunction("jh1236:secondary/staff/fire")
+        val damageScore = Objective("staffDmg")
+        init{
+            Fluorite.tickFile += {
+                Command.execute().asat('a'[""].hasTag(staffTag)).anchored(Anchor.EYES).run(shootFunction)
+            }
+            withReload(1)
+            withParticle(Particles.TOTEM_OF_UNDYING)
+            withRange(25)
+            asSecondary()
+            onEntityHit {(_, shooter) -> 
+                staffTag.add(shooter)
+            }
+            done()
+        }
+
+        override fun shoot() {
+            damageScore[self] = 0
+            fireFunc.append {
+                staffTag.remove(self)
+                damageScore[self] += damage
+                super.shoot()
+            }
+            fireFunc()
+        }
+
+    }
+
     tomeOfPetrification = ModularCoasWeapon("Tome of Petrification", 500)
         .withCooldown(2.0)
         .addSound("item.hoe.till", .1)
@@ -200,6 +233,35 @@ fun loadSecondaries() {
             Command.give(self, Items.BLACK_DYE.nbt("{jh1236:{weapon:$myId}}"))
         }
 
+    }
+
+    medusa = object : AbstractWeapon(0) {
+        
+        val medusaTag = PlayerTag("medusa")
+
+        val resetMedusa = McFunction("jh1236:secondary/medusa") {
+            applyCooldown(60)
+            Command.effect().clear(self, Effects.SLOWNESS)
+        }
+
+        init {
+            Fluorite.tickFile += {
+                Command.execute().asat('a'["predicate = jh1236:ready","nbt = {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}"].hasTag(playingTag)).run {
+                    medusaTag.add(self)
+                    Command.effect().give(self, Effects.SLOWNESS, 2, 2, true)
+                }
+                Command.execute().asat('a'[""].hasTag(playingTag)).run {
+                    If (!(self["nbt = {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}")) {
+                        medusaTag.remove(self)
+                        Command.effect().clear(self, Effects.SLOWNESS)
+                    }
+                }
+            }
+        }
+
+        override fun give(){ 
+            Command.give(self, Items.GUNPOWDER.nbt("{jh1236:{weapon:$myId}}"))
+        }
     }
 
     stealth = object : AbstractWeapon(0) {

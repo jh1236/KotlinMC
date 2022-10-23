@@ -28,18 +28,38 @@ lateinit var tomeOfAir: ModularCoasWeapon
 lateinit var rifle: ModularCoasWeapon
 lateinit var laser: ModularCoasWeapon
 
-fun loadPrimaries() {
+private fun loadSniper() {
     sniper = ModularCoasWeapon("Sniper", 4000).withCooldown(5.0).withParticle(Particles.END_ROD)
         .addSound("item.shield.block", 1.2).withCustomModelData(1).withRange(200).withPiercing()
         .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was no-scoped by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
         .done()
+}
 
+private fun loadShotgun() {
     shotgun = ModularCoasWeapon("Shotgun", 500).withParticle(Particles.CRIT).withReload(3.75).withCooldown(.15)
         .withClipSize(2).withSpread(5.0).withBulletsPerShot(8).addSound("entity.generic.explode", 1.4)
         .addSound("block.chain.hit", 0.0).withCustomModelData(2).withRange(10)
         .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was filled with lead by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
         .done()
+}
 
+private fun loadBazooka() {
+    fun bazookaHitsWall() {
+        Command.particle(Particles.EXPLOSION, rel(), abs(1.5, 1.5, 1.5), 0.0, 100).force('a'[""])
+        Command.particle(Particles.EXPLOSION_EMITTER, rel(), abs(1.5, 1.5, 1.5), 0.0, 10).force('a'[""])
+        Command.particle(Particles.FLAME, rel(), abs(1.5, 1.5, 1.5), 0.0, 100).force('a'[""])
+        Command.particle(Particles.CAMPFIRE_COSY_SMOKE, rel(), abs(1.5, 1.5, 1.5), 0.0, 100).force('a'[""])
+        Command.particle(Particles.ASH, rel(), abs(1.5, 1.5, 1.5), 0.0, 750).force('a'[""])
+        Command.particle(
+            Particles.DUST_COLOR_TRANSITION(0.988, 0.0, 0.0, 1.0, 1.0, 0.529, 0.122),
+            rel(),
+            abs(1.5, 1.5, 1.5),
+            0.0,
+            500
+        ).force('a'[""])
+        Command.playsound("minecraft:entity.firework_rocket.blast").master('a'[""], rel(), 4.0, 0.0)
+        Command.playsound("minecraft:entity.generic.explode").master('a'[""], rel(), 4.0, 0.0)
+    }
     bazooka =
         ModularCoasWeapon("Bazooka", 6000).withCooldown(4.0).withParticle(Particles.LARGE_SMOKE, 10).withProjectile(3)
             .withRange(100).withCustomModelData(3).addSound("minecraft:entity.firework_rocket.launch", 0.0)
@@ -47,9 +67,9 @@ fun loadPrimaries() {
             .onEntityHit { _, _ -> bazookaHitsWall() }
             .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was blown away by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
             .done()
+}
 
-    miniGun = Minigun()
-
+private fun loadLaser() {
     laser =
         object : ModularCoasWeapon("Laser", 2500) {
             val bounce = Fluorite.reuseFakeScore("bounce")
@@ -112,6 +132,9 @@ fun loadPrimaries() {
             }
         }
 
+}
+
+private fun loadNecromancy() {
     necromancy = ModularCoasWeapon("Necromancy", 2500).withCooldown(2.0).addSound("block.soul_sand.place", .1)
         .addSound("particle.soul_escape")
         .withParticle(Particles.DUST_COLOR_TRANSITION(0.0, 0.0, 0.0, 1.0, 0.431, 0.431, 0.431), 10)
@@ -129,8 +152,15 @@ fun loadPrimaries() {
         .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was bewitched by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
         .done()
 
+}
 
+private fun loadTome() {
 
+    fun tomeHitsWall() {
+        Command.particle(Particles.FLASH, rel(), abs(0, 0, 0), 1.0, 20)
+        Command.particle(Particles.CLOUD, rel(), abs(0.1, 0.1, 0.1), 1.0, 20)
+        Command.playsound("minecraft:block.beacon.deactivate").master('a'[""], rel(), 1.0)
+    }
     tomeOfAir =
         ModularCoasWeapon("Tome of Air", 3000).withCooldown(4.0).withParticle(Particles.CLOUD, 10).withProjectile(1)
             .withRange(50).withCustomModelData(7).addSound("minecraft:block.enchantment_table.use", 1.3).onWallHit {
@@ -145,8 +175,9 @@ fun loadPrimaries() {
             .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " got smoked by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
             .done()
 
-    ninjaSword()
+}
 
+private fun loadRifle() {
     rifle = ModularCoasWeapon("Rifle", 1200).withCooldown(0.5).withParticle(Particles.ENCHANTED_HIT)
         .addSound("minecraft:block.ancient_debris.hit", .25).addSound("minecraft:block.ancient_debris.hit", .25)
         .addSound("minecraft:block.ancient_debris.hit", .25).addSound("minecraft:block.ancient_debris.hit", .25)
@@ -154,25 +185,17 @@ fun loadPrimaries() {
         .onEntityHit { hit, _ -> Command.effect().give(hit, Effects.SLOWNESS, 2, 2, false) }
         .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was hunted by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
         .done()
-
-
 }
 
-private fun bazookaHitsWall() {
-    Command.particle(Particles.EXPLOSION, rel(), abs(1.5, 1.5, 1.5), 0.0, 100).force('a'[""])
-    Command.particle(Particles.EXPLOSION_EMITTER, rel(), abs(1.5, 1.5, 1.5), 0.0, 10).force('a'[""])
-    Command.particle(Particles.FLAME, rel(), abs(1.5, 1.5, 1.5), 0.0, 100).force('a'[""])
-    Command.particle(Particles.CAMPFIRE_COSY_SMOKE, rel(), abs(1.5, 1.5, 1.5), 0.0, 100).force('a'[""])
-    Command.particle(Particles.ASH, rel(), abs(1.5, 1.5, 1.5), 0.0, 750).force('a'[""])
-    Command.particle(
-        Particles.DUST_COLOR_TRANSITION(0.988, 0.0, 0.0, 1.0, 1.0, 0.529, 0.122), rel(), abs(1.5, 1.5, 1.5), 0.0, 500
-    ).force('a'[""])
-    Command.playsound("minecraft:entity.firework_rocket.blast").master('a'[""], rel(), 4.0, 0.0)
-    Command.playsound("minecraft:entity.generic.explode").master('a'[""], rel(), 4.0, 0.0)
+fun loadPrimaries() {
+    loadSniper()
+    loadShotgun()
+    loadBazooka()
+    miniGun = Minigun()
+    loadLaser()
+    loadNecromancy()
+    loadTome()
+    loadNinjaSword()
+    loadRifle()
 }
 
-private fun tomeHitsWall() {
-    Command.particle(Particles.FLASH, rel(), abs(0, 0, 0), 1.0, 20)
-    Command.particle(Particles.CLOUD, rel(), abs(0.1, 0.1, 0.1), 1.0, 20)
-    Command.playsound("minecraft:block.beacon.deactivate").master('a'[""], rel(), 1.0)
-}

@@ -21,7 +21,6 @@ lateinit var tomeOfPetrification: ModularCoasWeapon
 lateinit var teleport: ModularCoasWeapon
 lateinit var leap: ModularCoasWeapon
 lateinit var smokeCloud: AbstractWeapon
-lateinit var boom: AbstractWeapon
 lateinit var invis: AbstractWeapon
 lateinit var compass: AbstractWeapon
 lateinit var staff: ModularCoasWeapon
@@ -36,11 +35,14 @@ val resetMedusa = McFunction("jh1236:secondary/medusa") {
     medusaTag.remove(self)
 }
 
-fun loadSecondaries() {
+private fun loadPistol() {
     pistol =
         ModularCoasWeapon("Pistol", 600).withCooldown(.15).withClipSize(6).withReload(1.0).withParticle(Particles.CRIT)
-            .addSound("ui.loom.select_pattern", 2.0).withCustomModelData(101).withRange(50).asSecondary().done()
+            .addSound("ui.loom.select_pattern", 2.0).withCustomModelData(101).withRange(50).asSecondary()
+            .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was popped by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""").done()
+}
 
+private fun loadStaff() {
     staff = object : ModularCoasWeapon("Staff", 25) {
         val staffTag = PlayerTag("staff")
         val fireFunc = McFunction("jh1236:secondary/staff/fire")
@@ -52,6 +54,7 @@ fun loadSecondaries() {
             withRange(25)
             withCustomModelData(103)
             withCooldown(.1)
+            withKillMessage("""'["",{"selector": "@a[tag=$shootTag]","color": "gold"},{"text": " was trash and no-aimed "},{"selector": "@s","color": "gold"}]'""")
             asSecondary()
             onEntityHit { _, shooter ->
                 staffTag.add(shooter)
@@ -74,6 +77,7 @@ fun loadSecondaries() {
                     'a'["nbt =! {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}"]
                 )
             }
+
         }
 
         override fun shoot() {
@@ -95,9 +99,9 @@ fun loadSecondaries() {
         }
 
     }
+}
 
-    stoneSword()
-
+private fun loadCompass() {
     compass = object : AbstractWeapon(0) {
         val func = McFunction("secondary/compass") {
             Command.execute().anchored(Anchor.EYES)
@@ -130,6 +134,9 @@ fun loadSecondaries() {
         }
 
     }
+}
+
+private fun loadTp() {
     teleport = object : ModularCoasWeapon("Tome of Teleportation", 200) {
         private fun calcDistance(): Score {
             val distance = Fluorite.getNewFakeScore("distance")
@@ -185,12 +192,15 @@ fun loadSecondaries() {
                     it[""] = "{ Count:1 }"
                 }
             }
+            withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was displaced by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
             withPiercing()
             setup()
         }
 
     }
+}
 
+private fun loadPetrify() {
     tomeOfPetrification =
         ModularCoasWeapon("Tome of Petrification", 500).withCooldown(2.0).addSound("item.hoe.till", .1)
             .withParticle(Particles.SQUID_INK).onEntityHit { playerHit, _ ->
@@ -204,29 +214,12 @@ fun loadSecondaries() {
                 }
             }.withProjectile(10).withSplash(0.5).onWallHit {
                 Command.particle(Particles.SQUID_INK, rel(), abs(0, 0, 0), .3, 500)
-            }.withRange(50).withCustomModelData(106).asSecondary().done()
+            }.withRange(50).withCustomModelData(106).asSecondary()
+            .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was turned to stone by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""").done()
 
+}
 
-//    boom = ModularCoasWeapon("Bang", 0).withCooldown(4.0).withParticle(Particles.DUST(1.0, 0.0, 0.0, 1.2), 10)
-//        .withProjectile(1).withRange(50).withCustomModelData(4).addSound("minecraft:block.enchantment_table.use", 1.3)
-//        .onWallHit {}.onWallHit {
-//            val selector = 'a'["distance=..10", "limit = 1", "sort = nearest"].hasTag(playingTag)
-//            Command.execute().facing(selector, Anchor.EYES).positioned.As(selector.hasTag(playingTag)).rotated(
-//                Vec2("~", "0")
-//            ).positioned(loc(0, 0, -.3)).run {
-//                repeat(1) {
-//                    Command.summon(Entities.CREEPER, rel(0, 0.4, 0), "{ExplosionRadius:-1, Fuse:0b, ignited:1b}")
-//                }
-//            }
-//        }.onEntityHit { _, _ ->
-//            Command.execute().asat('a'["distance=..10"].hasTag(playingTag)).run {
-//                repeat(1) {
-//                    Command.summon(Entities.CREEPER, rel(0, .5, 0), "{ExplosionRadius:-1, Fuse:0b, ignited:1b}")
-//                }
-//            }
-//        }.done()
-
-
+private fun loadTraps() {
     object : AbstractWeapon(0) {
         init {
             secondary = true
@@ -236,6 +229,9 @@ fun loadSecondaries() {
         }
 
     }
+}
+
+private fun loadAura() {
 
     smokeCloud = object : AbstractWeapon(0) {
         val smokeTag = PlayerTag("smoke")
@@ -299,8 +295,9 @@ fun loadSecondaries() {
         }
 
     }
+}
 
-
+private fun loadMedusa() {
     medusa = object : AbstractWeapon(0) {
         val medusaMatch = McFunction("secondary/medusa/particle") {
             medusaTag.add(self)
@@ -310,7 +307,8 @@ fun loadSecondaries() {
             gt %= 50
             Tree(gt, 0..50) {
                 val y = kotlin.math.abs(2 - ((it.toDouble() / 12.5) % 4))
-                val coords = rel(.7 * cos(8 * (it.toDouble() * pi) / 50), y, .7 * sin(8 * (it.toDouble() * pi) / 50))
+                val coords =
+                    rel(.7 * cos(8 * (it.toDouble() * pi) / 50), y, .7 * sin(8 * (it.toDouble() * pi) / 50))
                 val coords2 = rel(.7 * sin(8 * ((25 + it) * pi) / 50), y, .7 * cos(8 * ((25 + it) * pi) / 50))
                 Command.particle(
 //                Particles.DUST_COLOR_TRANSITION(0.0, 0.0, 1.0, 1.0, 0.6, 1.0, 1.0),
@@ -357,7 +355,9 @@ fun loadSecondaries() {
             )
         }
     }
+}
 
+private fun loadInvis() {
     invis = object : AbstractWeapon(0) {
 
         val func = McFunction("secondary/stealth") {
@@ -399,6 +399,9 @@ fun loadSecondaries() {
         }
 
     }
+}
+
+private fun loadLeap() {
 
     leap = object : ModularCoasWeapon("Tome of Propulsion", 200) {
         private fun calcDistance(): Score {
@@ -462,5 +465,18 @@ fun loadSecondaries() {
             setup()
         }
     }
+}
 
+fun loadSecondaries() {
+    loadPistol()
+    loadStaff()
+    loadCompass()
+    stoneSword()
+    loadTp()
+    loadPetrify()
+    loadTraps()
+    loadAura()
+    loadMedusa()
+    loadInvis()
+    loadLeap()
 }

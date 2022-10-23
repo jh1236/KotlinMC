@@ -27,7 +27,7 @@ val traceScore = Objective("trace")
 val swordScore = Objective("useStoneSword", Criteria.useItem(Items.STONE))
 val stabbed = PlayerTag("stabbed")
 
-fun ninjaSword() {
+fun loadNinjaSword() {
 
 
     val ninjaSword = object : AbstractWeapon(1000) {

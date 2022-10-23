@@ -5,6 +5,7 @@ import abstractions.flow.If
 import abstractions.flow.Tree
 import abstractions.variables.NBTTypes
 import commands.Command
+import enums.Items
 import gunGame.playingTag
 import gunGame.self
 import internal.commands.impl.execute.Execute
@@ -24,11 +25,7 @@ import utils.score.ScoreConstant
 val shootTag = PlayerTag("shot")
 fun coolDownSetup() {
     ExternalFile(
-        "G:/Games/Minecraft Servers/Gun Server/world/datapacks/packle/data/jh1236/predicates/ready.json",
-        "data/jh1236/predicates/ready.json"
-    )
-    ExternalFile(
-        "G:/Games/Minecraft Servers/Gun Server/world/datapacks/packle/data/jh1236/predicates/ready.json",
+        "G:/Games/Minecraft Servers/Gun Server/world/datapacks/backup/packle/data/jh1236/predicates/ready.json",
         "data/jh1236/predicates/ready.json"
     )
 }
@@ -37,8 +34,8 @@ fun coolDownSetup() {
 val applyCoolDown = McMethod("apply_cd", 1) { (coolDown) ->
     with(Command) {
         If(coolDown gte 10000) { coolDown.set(20) }
-        If(self["tag = noCooldown"]) { coolDown.set(0) }
-        val gameTime = Fluorite.getNewGarbageScore()
+        If(self["tag = noCooldown"]) { coolDown.set(1) }
+        val gameTime = Fluorite.reuseFakeScore("gametime")
         gameTime.set { time().query.gametime }
         gameTime += coolDown
         copyHeldItemToBlockAndRun {
@@ -79,6 +76,22 @@ fun ammoDisplayTick() {
                 it["Count"] = it["tag.jh1236.ammo.value"]
             }
         }
+        execute().asat('a'[""].hasTag(playingTag)).If(self hasData "Inventory[{Slot:-106b}]").run {
+            item().replace.entity(self, "weapon.mainhand").from.entity(self, "weapon.offhand")
+            item().replace.entity(self, "weapon.offhand").with(Items.AIR)
+            If(self hasData "SelectedItem.tag.jh1236.ammo" and self["predicate = jh1236:ready"]) {
+                val ammo = Fluorite.reuseFakeScore("ammo")
+                ammo.set(self.data["SelectedItem.tag.jh1236.ammo.value"])
+                val max = Fluorite.reuseFakeScore("max")
+                max.set(self.data["SelectedItem.tag.jh1236.ammo.max"])
+                If(!(max eq ammo)) {
+                    copyHeldItemToBlockAndRun {
+                        it["tag.jh1236.ammo.value"] = it["tag.jh1236.ammo.max"]
+                    }
+                    applyCoolDown(30)
+                }
+            }
+        }
     }
 }
 
@@ -86,14 +99,14 @@ fun coolDownTick() {
     with(Command) {
         execute().asat('a'[""].hasTag(playingTag)).If(self hasData "SelectedItem.tag.jh1236.weapon")
             .unless.predicate("jh1236:ready").run {
-                val gameTime = Fluorite.getNewFakeScore("gametime")
+                val gameTime = Fluorite.reuseFakeScore("gametime")
                 gameTime.set { time().query.gametime }
-                val coolDown = Fluorite.getNewFakeScore("cd")
+                val coolDown = Fluorite.reuseFakeScore("cd")
                 coolDown.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
-                val max = Fluorite.getNewFakeScore("max")
+                val max = Fluorite.reuseFakeScore("max")
                 max.set(self.data["SelectedItem.tag.jh1236.cooldown.max"])
                 If(gameTime gte coolDown) {
-                    If(max gt 1) { playsound("block.note_block.pling").player(self, rel(), 1.0, 2.0) }
+                    If(max gt 1) { playsound("block.note_block.pling").player(self, rel(), 1, 2.0) }
                     applyNbtToHeldItem("{jh1236:{ready:1b}}")
                 }
                 xp().set(self, 10).levels

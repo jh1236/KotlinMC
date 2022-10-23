@@ -7,21 +7,27 @@ import enums.Anchor
 import enums.Blocks
 import enums.Particles
 import events.EventManager
+import gunGame.weapons.handleStreak
+import gunGame.weapons.medusaTag
+import gunGame.weapons.resetMedusa
 import gunGame.weapons.shootTag
 import internal.commands.impl.execute.Execute
+import lib.debug.Log
 import lib.get
 import structure.McFunction
-import utils.Selector
-import utils.abs
-import utils.loc
-import utils.rel
+import utils.*
 import utils.score.Objective
 
+val streak = Objective("jh.streak", Criteria.dummy, """{"text":"Streak"}""")
+val kills = Objective("jh.kills", Criteria.dummy, """{"text":"Kills"}""")
+val deaths = Objective("jh.deaths", Criteria.dummy, """{"text":"Deaths"}""")
+val kdr = Objective("jh.kdr", Criteria.dummy, """{"text":"100 * KDR"}""")
 val maxHealth = Objective("maxHealth")
 val health = Objective("health")
 val timeSinceHit = Objective("timeSinceHit")
 val playingTag = PlayerTag("playing")
 val deadTag = PlayerTag("dead")
+
 
 fun setPlaying(playing: Boolean) {
     if (playing) {
@@ -49,29 +55,62 @@ fun healthTick() {
 
 }
 
+private val calcKDR = McFunction("jh1236:health/kdr") {
+    kdr[self] = kills[self]
+    kdr[self] *= 100
+    kdr[self] /= deaths[self]
+}
+
+val respawnFunc = McFunction("health/respawn") {
+    Command.gamemode().adventure(self)
+    deadTag.remove(self)
+    playingTag.remove(self)
+    Command.clear()
+    Command.effect().clear
+    health[self] = 3000
+    maxHealth[self] = 3000
+    Command.tp(self, abs(-16, 3, -89))
+}
 private val dieFunc = McFunction("jh1236:health/die") {
     with(Command) {
-
         playingTag.remove(self)
         deadTag.add(self)
         clear()
         effect().clear
         gamemode().spectator
         spectate('a'["limit = 1"].hasTag(shootTag))
-        schedule().As(self, 80) {
-            gamemode().adventure(self)
-            deadTag.remove(self)
-            health[self] = 3000
-            maxHealth[self] = 3000
-            tp(self, abs(-16, 4, -69))
-        }
+        kills['a'["limit = 1"].hasTag(shootTag)] += 1
+        streak['a'["limit = 1"].hasTag(shootTag)] += 1
+        streak[self] = 0
+        deaths[self] += 1
+        execute().If('a'[""].hasTag(shootTag).notHasTag(deadTag)).run.tellraw(
+            'a'[""],
+            """{"nbt":"death", "storage":"jh1236:message","interpret":true}"""
+        )
+        execute().unless('a'[""].hasTag(shootTag).notHasTag(deadTag)).run.tellraw(
+            'a'[""],
+            "",
+            """{"selector": "@s","color": "gold"}""",
+            """{"text": " didn't want to live in the same world as "}""",
+            """{"selector": "@a[tag=!$shootTag]","color": "gold"}"""
+        )
+        execute().asat('a'[""].hasTag(shootTag)).run(::handleStreak)
+        calcKDR()
+        execute().asat('a'[""].hasTag(shootTag)).run(calcKDR)
+        schedule().As(self, 80, respawnFunc)
     }
 }
+
 
 val deathEvent = EventManager(dieFunc)
 
 val damageSelf = McMethod("jh1236:health/damage", 1) { (damage) ->
     with(Command) {
+        Log.info("Damaged ", self, " for ", damage, " damage!!")
+        If(self.hasTag(medusaTag)) {
+            resetMedusa()
+            damage /= 10
+        }
         health[self] -= damage
         timeSinceHit[self] = 0
         particle(
@@ -99,7 +138,7 @@ fun Execute.asIntersects(entity: Selector): Execute {
 }
 
 fun Execute.lerpFacing(entity: Selector, numerator: Int, denominator: Int): Execute {
-    facing.entity(entity, Anchor.EYES).positioned(loc(0, 0, numerator)).rotated.As(self)
-        .positioned(loc(0, 0, denominator)).facing.entity(self, Anchor.EYES).facing(loc(0, 0, -1)).positioned.As(self)
+    facing(entity, Anchor.EYES).positioned(loc(0, 0, numerator)).rotated.As(self)
+        .positioned(loc(0, 0, denominator)).facing(self, Anchor.EYES).facing(loc(0, 0, -1)).positioned.As(self)
     return this
 }

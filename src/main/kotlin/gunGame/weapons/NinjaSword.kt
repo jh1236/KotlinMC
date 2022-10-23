@@ -27,10 +27,12 @@ val traceScore = Objective("trace")
 val swordScore = Objective("useStoneSword", Criteria.useItem(Items.STONE))
 val stabbed = PlayerTag("stabbed")
 
-fun swordInit() {
+fun ninjaSword() {
 
 
     val ninjaSword = object : AbstractWeapon(1000) {
+
+
         override fun give(player: Selector) {
             Command.give(self, Items.IRON_SWORD.nbt("{jh1236:{weapon:$myId}}"))
         }
@@ -74,7 +76,15 @@ fun swordInit() {
             function = hitFunc
         }
     }
+
+}
+
+fun stoneSword() {
     val sword = object : AbstractWeapon(600) {
+        init {
+            secondary = true
+        }
+
         override fun give(player: Selector) {
             Command.give(self, Items.STONE_SWORD.nbt("{jh1236:{weapon:$myId}}"))
         }
@@ -118,8 +128,8 @@ fun swordInit() {
             // TODO: stop being lazy
             Command.raw("execute anchored eyes facing entity @e[tag=$stabbed,sort=nearest,limit=1, tag =! $deadTag] feet run tp @s ~ ~ ~ ~ ~-30")
             traceScore[self] -= 1
-            If (traceScore[self] eq 0) {
-                Command.tag('e'["sort=nearest","limit=1"].hasTag(stabbed))
+            If(traceScore[self] eq 0) {
+                Command.tag('e'["sort=nearest", "limit=1"].hasTag(stabbed))
             }
         }
     }
@@ -131,7 +141,7 @@ fun parity(int: Int): Int = if (int % 2 == 0) 1 else -1
 val tryTp = McFunction("ninja_sword/try_tp") {
     traceScore[self] = 6
     Tree(Random.next.rem(6), 0..5) {
-        Command.execute().anchored(Anchor.EYES).facing.entity(
+        Command.execute().anchored(Anchor.EYES).facing(
             'a'[""].hasTag(stabbed),
             Anchor.FEET
         ).positioned.As('a'[""].hasTag(stabbed)).rotated(
@@ -143,7 +153,7 @@ val tryTp = McFunction("ninja_sword/try_tp") {
 }
 
 val tp = McFunction("ninja_sword/tp") {
-    val retScore = Fluorite.getNewFakeScore("test", 0)
+    val retScore = Fluorite.reuseFakeScore("test", 0)
     retScore.set {
         Command.execute()
             .If(loc(0, 0, -.5) isBlock Blocks.AIR)

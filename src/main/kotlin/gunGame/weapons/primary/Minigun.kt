@@ -52,6 +52,7 @@ class Minigun : ModularCoasWeapon("Minigun", 240) {
         withSpread(3.0)
         withReload(5.0)
         addSound("block.note_block.hat", 2.0)
+        withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was peppered down by "},{"selector": "@a[tag=fired]","color": "gold"}]'""")
         done()
         Fluorite.tickFile += {
             score['a'["scores = {$score = 1..}"].hasTag(playingTag)] -= 1
@@ -92,7 +93,7 @@ class Minigun : ModularCoasWeapon("Minigun", 240) {
         fire = McFunction("jh1236:primary/minigun/shoot") {
             super.shoot()
             If(self["nbt = {SelectedItem:{tag:{jh1236:{ammo:{value:50}}}}}"]) {
-                Command.playsound("block.conduit.deactivate").master(self, rel(), 1.0, 0.0)
+                Command.playsound("block.conduit.deactivate").master(self, rel(), 1, 0.0)
             }
         }
     }

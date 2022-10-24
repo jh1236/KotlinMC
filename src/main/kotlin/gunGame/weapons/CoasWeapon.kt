@@ -12,7 +12,7 @@ import structure.Fluorite
 import structure.McFunction
 import utils.score.Score
 
-abstract class AbstractCoasWeapon(protected val name: String, damage: Int) : AbstractWeapon(damage) {
+abstract class AbstractCoasWeapon(name: String, damage: Int) : AbstractWeapon(name, damage) {
     companion object {
         val currentId: Score = Fluorite.getNewFakeScore("id")
 
@@ -25,10 +25,12 @@ abstract class AbstractCoasWeapon(protected val name: String, damage: Int) : Abs
         }
     }
 
+
+
     lateinit var shootFunction: McFunction
 
     fun setup() {
-        shootFunction = McFunction("jh1236:${if (secondary) "Secondary" else "Primary"}/${name.replace(" ", "_")}")
+        shootFunction = McFunction(basePath)
         shootFunction.append {
             shoot()
         }

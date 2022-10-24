@@ -1,5 +1,6 @@
 package gunGame.maps
 
+import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Switch
 import abstractions.notHasTag
@@ -8,11 +9,13 @@ import enums.Effects
 import gunGame.*
 import gunGame.weapons.AbstractWeapon.Companion.allWeapons
 import lib.Trigger
+import lib.debug.Debug
 import lib.debug.Log
 import lib.get
 import lib.random.Random
 import structure.Fluorite
 import structure.McFunction
+import utils.Selector
 import utils.Vec2
 import utils.score.Objective
 
@@ -23,20 +26,26 @@ lateinit var spawnFunc: McFunction
 fun spawnSetup() {
 
 
-    val primaryCount = allWeapons.stream().filter { !it.secondary }.count().toInt()
-    val secondaryCount = allWeapons.stream().filter { it.secondary }.count().toInt()
+    val primaryCount = allWeapons.stream().filter { !it.secondary && !it.isReward }.count().toInt()
+    val secondaryCount = allWeapons.stream().filter { it.secondary && !it.isReward }.count().toInt()
     val mapFunc = McFunction("spawn/map") {
         Command.effect().clear(self, Effects.SPEED)
-        Command.tellraw(
-            'a'[""],
-            "",
-            """{"selector":"@s", "color":"gold"}""",
-            """{"text": " has spawned in!", "color":"white"}"""
-        )
+        If(!(Fluorite.reuseFakeScore("map") eq 0)) {
+            Command.tellraw(
+                'a'[""],
+                "",
+                """{"selector":"@s", "color":"gold"}""",
+                """{"text": " has spawned in!", "color":"white"}"""
+            )
+        }
         health[self] = 3000
         maxHealth[self] = 3000
         Command.gamemode().adventure
         Switch(Fluorite.reuseFakeScore("map"), allowDuplicateMatches = true)
+            .case(0) {
+                respawnFunc()
+                Command.tellraw(self, "No map is selected!")
+            }
             .case(1) {
                 Command.spreadplayers(Vec2(8, 8), 9, 9.0).under(10, false, self)
             }.case(2) {
@@ -55,7 +64,7 @@ fun spawnSetup() {
     val primaryDirectory = McFunction("spawn/primary") {
         var i = 0
         for (weapon in allWeapons) {
-            if (weapon.secondary) continue
+            if (weapon.secondary || weapon.isReward) continue
             i++
             If(weaponSelectScore eq i) {
                 weapon.give(self)
@@ -65,7 +74,7 @@ fun spawnSetup() {
     val secondaryDirectory = McFunction("spawn/secondary") {
         var i = 0
         for (weapon in allWeapons) {
-            if (!weapon.secondary) continue
+            if (!weapon.secondary || weapon.isReward) continue
             i++
             If(secondarySelectScore eq i) {
                 weapon.give(self)
@@ -115,31 +124,46 @@ fun spawnSetup() {
     }
 
     Fluorite.tickFile += {
-
-        McFunction("scoreboard") {
-            val gt = Fluorite.reuseFakeScore("gametime")
-            gt.set { Command.time().query.gametime }
-            gt %= 320
-            gt /= 80
-            Switch(gt, allowDuplicateMatches = true)
-                .case(0) {
-                    streak.setDisplay("sidebar")
-                }
-                .case(1) {
-                    kills.setDisplay("sidebar")
-                }
-                .case(2) {
-                    deaths.setDisplay("sidebar")
-                }
-                .case(3) {
-                    kdr.setDisplay("sidebar")
-                }
-        }()
+        if(!Debug.debugMode) {
+            McFunction("scoreboard") {
+                val gt = Fluorite.reuseFakeScore("gametime")
+                gt.set { Command.time().query.gametime }
+                gt %= 320
+                gt /= 80
+                Switch(gt, allowDuplicateMatches = true)
+                    .case(0) {
+                        streak.setDisplay("sidebar")
+                    }
+                    .case(1) {
+                        kills.setDisplay("sidebar")
+                    }
+                    .case(2) {
+                        deaths.setDisplay("sidebar")
+                    }
+                    .case(3) {
+                        kdr.setDisplay("sidebar")
+                    }
+            }()
+        }
     }
     Trigger("spawn") {
         respawnFunc()
     }
-    Trigger("random", 'a'[""].notHasTag(playingTag)) {
+    Trigger("random", 'a'[""]) {
+        respawnFunc()
         randomFunc()
+    }
+    Trigger("reset", Selector("Jh1236")) {
+        deaths["*"].reset()
+        streak["*"].reset()
+        kills["*"].reset()
+        kdr["*"].reset()
+        Command.execute().asat('a'[""]).run {
+            respawnFunc()
+            deaths[self] = 0
+            streak[self] = 0
+            kills[self] = 0
+            kdr[self] = 0
+        }
     }
 }

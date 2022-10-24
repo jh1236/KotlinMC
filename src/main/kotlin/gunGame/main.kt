@@ -1,5 +1,6 @@
 package gunGame
 
+import abstractions.If
 import abstractions.asat
 import abstractions.hasTag
 import abstractions.notHasTag
@@ -10,7 +11,8 @@ import enums.Items
 import events.ScoreEventManager
 import gunGame.maps.spawnSetup
 import gunGame.weapons.*
-import gunGame.weapons.primary.loadPrimaries
+import gunGame.weapons.impl.loadExperiments
+import gunGame.weapons.impl.loadPrimaries
 import lib.Trigger
 import lib.debug.Debug
 import lib.debug.Log
@@ -20,10 +22,7 @@ import structure.Datapack
 import structure.ExternalFile
 import structure.Fluorite
 import structure.McFunction
-import utils.Criteria
-import utils.Selector
-import utils.Vec2
-import utils.abs
+import utils.*
 
 val dp = Datapack("Gun Game", "jh1236")
 val self = Selector('s')
@@ -40,7 +39,7 @@ fun main() {
     )
 
     Log.logLevel = Log.TRACE
-    Debug.debugMode = true
+    Debug.debugMode = false
     addDebug()
 
     coasSetup()
@@ -48,9 +47,20 @@ fun main() {
 
     loadPrimaries()
     loadSecondaries()
-
-
+    loadFun()
+    loadExperiments()
     spawnSetup()
+
+    McFunction("other/open_door") {
+        rel(0,1,0).data["{}"] = "{Page:0}"
+        Command.fill(abs(-92, 15, 11), abs(-92, 14, 10), Blocks.AIR)
+        Command.setblock(abs(-91, 14, 10), Blocks.BROWN_CARPET)
+        Command.schedule().function("40t") {
+            Command.raw("""setblock -91 14 10 minecraft:lectern[facing=east,has_book=true,powered=false]{Book:{Count:1b,id:"minecraft:written_book",tag:{author:"Jh1236",filtered_title:"Lorem Ipsum",pages:['{"text":"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aenean non lacus ac felis semper tempor ut vitae leo. Duis nisl neque, condimentum at gravida ut, iaculis eu ipsum. Etiam quis arcu quis ligula dapibus porttitor. Quisque tempor quam vel felis condimentum, ac eleifend tellus ornare."}','{"text":"Phasellus ex neque, fermentum sed turpis et, sodales efficitur libero. Donec dapibus aliquam tellus nec accumsan. Nullam sit amet cursus enim. Pellentesque non orci ac erat rutrum bibendum. Pellentesque cursus sodales libero eu suscipit. Donec nec quam odio."}','{"text":"Aenean at quam vitae odio placerat placerat ut in tortor. Proin id lorem elit. Phasellus tincidunt, justo nec gravida vestibulum, neque libero vulputate eros, sit amet hendrerit ex augue vel eros. Quisque ac libero eu arcu dapibus sodales sed ac quam."}','{"text":"Open Seasame"}','{"text":"Vestibulum scelerisque elementum tortor, in dignissim ante. Aliquam augue sapien, iaculis eu ultricies eu, hendrerit in mi. Phasellus congue eros non fermentum eleifend. Nam ac mattis purus, vel auctor enim. "}'],resolved:1b,title:"Lorem Ipsum"}},Page:0}""")
+            Command.fill(abs(-92, 15, 11), abs(-92, 14, 10), Blocks.RED_MUSHROOM_BLOCK)
+        }
+
+    }
 
 
     Trigger("map", Selector("Jh1236")) { Fluorite.reuseFakeScore("map").set(it) }
@@ -73,7 +83,7 @@ fun main() {
 
     dp.write(
         "G:/Games/Minecraft Servers/Gun Server/world/datapacks",
-        "Datapack Handling guns etc",
+        "Datapack Handling guns etc", delete = true
     )
 }
 
@@ -110,6 +120,10 @@ fun mcMain() {
     Command.raw("execute as @a[tag = !$playingTag, predicate = jh1236:sneaking] at @s if block ~ ~-.25 ~ waxed_oxidized_copper positioned ~ 0 ~ if entity @s[dy = 100] run tp @s ~ ~-2 ~")
     Command.raw("execute as @a[tag = !$playingTag, predicate = jh1236:sneaking] at @s if block ~ ~-.25 ~ waxed_oxidized_copper positioned ~ 0 ~ unless entity @s[dy = 100] run tp @s ~ ~4 ~")
     Command.raw("execute as @e[tag = block] run data merge entity @s {Time: -10000}")
+    Command.execute().asat('e'["type = item", "tag = !safe"]).If(self.data["Item.tag.jh1236.weapon"]).run {
+        Command.tag(self).add("safe")
+        self.data["{}"] = "{PickupDelay:0}"
+    }
     Command.kill('e'["type = item, tag =! safe"])
 
 }

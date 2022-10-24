@@ -21,27 +21,32 @@ private val random = Random(19930749089)
 open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(name, damage) {
 
     companion object {
-        private val universalProjectile = PlayerTag("projectile")
+        val universalProjectile = PlayerTag("projectile")
         private val hit = Fluorite.getNewFakeScore("hit", 0)
     }
 
 
+    protected var ableBeShot = false
+    var activationDelay: Int = -1
+    protected var maxAllowed = -1
     protected var piercing = false
-    protected val projectile = PlayerTag("projectile$myId")
+    val projectile = PlayerTag("projectile$myId")
     protected var particleCount: Int = 1
+    protected var canHitOwner: Boolean = false
     protected var sound = arrayListOf<Pair<String, Double>>()
-    protected var particle: IParticle = Particles.DOLPHIN
+    protected var particle: IParticle? = null
     protected var reload = 0
     protected var cooldown = 0
     protected var clipSize = 1
     protected var bulletsPerShot = 1
-    protected var range = -1
+    var range = -1
     protected var spread = 0.0
     protected var onWallHit: ((Selector) -> Unit)? = null
     protected var afterShot: (() -> Unit)? = null
-    protected var onShootFunc: (() -> Unit)? = null
-    protected var onProjectileTick: ((Selector) -> Unit)? = null
-    protected var onEntityHit: ((Selector, Selector) -> Unit)? = null
+    protected var onShootFunc: (ModularCoasWeapon.() -> Unit)? = null
+    protected var onReloadFunc: (ModularCoasWeapon.() -> Unit)? = null
+    protected var onProjectileTick: (ModularCoasWeapon.(Selector) -> Unit)? = null
+    var onEntityHit: (ModularCoasWeapon.(Selector, Selector) -> Unit)? = null
     protected var customModelData = -1
     protected var projectileSpeed = -1
     protected var splashRange = 0.0
@@ -58,13 +63,44 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
         return this
     }
 
+    fun canBeShot(): ModularCoasWeapon {
+        this.ableBeShot = true
+        return this
+    }
+
     fun asSecondary(): ModularCoasWeapon {
         this.secondary = true
         return this
     }
 
+
+    fun onShoot(function: ModularCoasWeapon.() -> Unit): ModularCoasWeapon {
+        this.onShootFunc = function
+        return this
+    }
+
+    fun onReload(function: ModularCoasWeapon.() -> Unit): ModularCoasWeapon {
+        this.onReloadFunc = function
+        return this
+    }
+
+    fun asReward(): ModularCoasWeapon {
+        this.isReward = true
+        return this
+    }
+
+    fun canHitOwner(): ModularCoasWeapon {
+        this.canHitOwner = true
+        return this
+    }
+
     fun withPiercing(): ModularCoasWeapon {
         this.piercing = true
+        return this
+    }
+
+    fun withActivationDelay(delay: Double): ModularCoasWeapon {
+        this.activationDelay = (delay * 20).roundToInt()
         return this
     }
 
@@ -74,7 +110,7 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
         return this
     }
 
-    fun onEntityHit(onHit: (Selector, Selector) -> Unit): ModularCoasWeapon {
+    fun onEntityHit(onHit: ModularCoasWeapon.(Selector, Selector) -> Unit): ModularCoasWeapon {
         this.onEntityHit = onHit
         return this
     }
@@ -128,18 +164,19 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
         return this
     }
 
-    fun withProjectile(speed: Int): ModularCoasWeapon {
+    fun withProjectile(speed: Int, maxAllowed: Int = -1): ModularCoasWeapon {
         projectileSpeed = speed
+        this.maxAllowed = maxAllowed
         return this
     }
 
-    fun onProjectileTick(func: (Selector) -> Unit): ModularCoasWeapon {
+    fun onProjectileTick(func: ModularCoasWeapon.(Selector) -> Unit): ModularCoasWeapon {
         onProjectileTick = func
         return this
     }
 
     fun withRange(range: Int): ModularCoasWeapon {
-        this.range = range
+        this.range = (range * 4)
         return this
     }
 
@@ -150,9 +187,27 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
 
 
     override fun shoot() {
-        onShootFunc?.let { it() }
+        onShootFunc?.let { this.it() }
+        if (maxAllowed > 0) {
+            If('e'[""].hasTag(projectile).count() gte maxAllowed) {
+                val lowestHealth = Fluorite.reuseFakeScore("temp", range)
+                Command.execute().asat('e'[""].hasTag(projectile)).run {
+                    lowestHealth.minOf(health[self])
+                }
+                Command.execute().asat('e'[""].hasTag(projectile)).If(health[self] eq lowestHealth).run.kill()
+            }
+        }
         if (clipSize != 1) {
             applyCoolDown(decrementClip(cooldown, reload))
+            onReloadFunc?.let {
+                val ammo = Fluorite.reuseFakeScore("ammo")
+                ammo.set(self.data["SelectedItem.tag.jh1236.ammo.value"])
+                val max = Fluorite.reuseFakeScore("max")
+                max.set(self.data["SelectedItem.tag.jh1236.ammo.max"])
+                If(ammo eq max) {
+                    this.it()
+                }
+            }
         } else {
             applyCoolDown(cooldown)
         }
@@ -176,14 +231,14 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
             singleShot()
         }
         for ((sound, pitch) in sound) {
-            Command.playsound(sound).master(self, rel(), 1.0, pitch)
+            Command.playsound(sound).master(self["tag =! noSound"], rel(), 1.0, pitch)
         }
         afterShot?.let { it() }
         shootTag.remove(self)
     }
 
-    private fun singleShot() {
-        if (projectileSpeed > 0) {
+    protected open fun singleShot() {
+        if (projectileSpeed >= 0) {
             projectile()
         } else {
             rayCast()
@@ -192,113 +247,155 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
 
     private fun projectile() {
         val new = PlayerTag("new")
-        Command.summon(Entities.MARKER, loc(), "{Tags:[$projectile,$new, $universalProjectile]}")
+        if (!ableBeShot) {
+            Command.summon(
+                Entities.MARKER,
+                rel(),
+                "{Tags:[$projectile,$new, $universalProjectile]}"
+            )
+        } else {
+            Command.summon(
+                Entities.ARMOR_STAND,
+                rel(),
+                "{Tags:[$projectile,$new, $universalProjectile, $playingTag], Small:1b, Invulnerable:1b, NoGravity:1b, Invisible:1b}"
+            )
+        }
+
         val newEntity = 'e'[""].hasTag(new).hasTag(projectile)
         Command.execute().As(newEntity).run {
             idScore[self].set(idScore['a'["limit = 1"].hasTag(shootTag)])
             if (range > 0) {
-                health[self] = (range * 3.3).toInt()
+                health[self] = range
             } else {
                 health[self] = rangeScore
             }
         }
-        Command.execute().asat('a'[""].hasTag(shootTag)).anchored(Anchor.EYES).run.tp(newEntity, loc(), Vec2("~", "~"))
-        new.remove('e'[""])
-        repeat(projectileSpeed) {
-            Fluorite.tickFile += ::projectileTick
+        if (projectileSpeed > 0) {
+            Command.execute().asat('a'[""].hasTag(shootTag)).anchored(Anchor.EYES).run.tp(
+                newEntity,
+                loc(),
+                Vec2("~", "~")
+            )
         }
+        new.remove('e'[""])
+        val file = McFunction("$basePath/projectile")
+        if (projectileSpeed > 1) {
+            val file2 = McFunction("$basePath/projectile/tick") { projectileTick() }
+            repeat(projectileSpeed) {
+                file += { Command.execute().at(self).run(file2) }
+            }
+        } else {
+            file += { projectileTick() }
+        }
+        Fluorite.tickFile += { Command.execute().asat('e'[""].hasTag(projectile)).run(file) }
     }
 
     private fun projectileTick() {
         val tempScore = Fluorite.reuseFakeScore("tempID")
+
         with(Command) {
-            execute().asat('e'[""].hasTag(projectile)).run {
-                tempScore.set(idScore[self])
-                execute().As('a'[""].hasTag(playingTag)).If(idScore[self] eq tempScore).run {
-                    shootTag.add(self)
-                }
-                particle(particle, rel(), abs(0, 0, 0), 0.0, particleCount)
-                onProjectileTick?.let { it(self) }
-                execute().positioned(loc(0.0, 0.0, .3)).If(rel() isBlock blockTag("jh1236:air")).run.tp(
+
+            tempScore.set(idScore[self])
+            execute().As('e'[""].hasTag(playingTag)).If(idScore[self] eq tempScore).run {
+                shootTag.add(self)
+            }
+            particle?.let { particle(it, rel(), abs(0, 0, 0), 0.0, particleCount) }
+            onProjectileTick?.let { this@ModularCoasWeapon.it(self) }
+            if (projectileSpeed > 0) {
+                execute().positioned(loc(0.0, 0.0, .25)).If(rel() isBlock blockTag("jh1236:air")).run.tp(
                     self,
                     rel()
                 )
-                execute().positioned(loc(0.0, 0.0, .3)).unless(rel() isBlock blockTag("jh1236:air"))
+                execute().positioned(loc(0.0, 0.0, .25)).unless(rel() isBlock blockTag("jh1236:air"))
                     .run {
-                        onWallHit?.let { it(self) }
                         if (splashRange > 0) {
-                            splash()
+                            Command.execute().positioned(rel(0, 1, 0)).run { splash() }
                         }
+                        onWallHit?.let { it(self) }
                         health[self].reset()
                         kill()
                     }
-                hit.set(0)
-                execute().asIntersects('e'[""].hasTag(playingTag)).unless(idScore[self] eq tempScore).run {
-                    data().merge.storage("jh1236:message", "{death: $killMessage}")
-                    hit.set(1)
-                    if (splashRange <= 0) {
-                        damageSelf(damage)
-                    } else {
-                        splash()
-                    }
-                    onEntityHit?.let { it(self, 'a'[""].hasTag(shootTag)) }
+            }
+            hit.set(0)
+            val ex = if (activationDelay > 0) {
+                execute().unless(health[self] gt range - activationDelay)
+            } else {
+                execute()
+            }
+            ex.asIntersects('e'[""].hasTag(playingTag))
+
+            if (!canHitOwner) {
+                ex.unless(idScore[self] eq tempScore)
+            }
+
+            ex.run {
+                data().merge.storage("jh1236:message", "{death: $killMessage}")
+                hit.set(1)
+                damageSelf(damage)
+                if (splashRange > 0) {
+                    splash()
                 }
-                if (!piercing) {
-                    If(hit eq 1) {
-                        kill()
-                    }
-                }
-                health[self] -= 1
-                If(health[self] eq 0) {
-                    onWallHit?.let { it('a'[""].hasTag(shootTag)) }
-                    if (splashRange > 0) {
-                        splash()
-                    }
+                onEntityHit?.let { this@ModularCoasWeapon.it(self, 'a'[""].hasTag(shootTag)) }
+            }
+            if (!piercing) {
+                If(hit eq 1) {
                     kill()
                 }
-                shootTag.remove('e'[""])
             }
+            health[self] -= 1
+            If(health[self] eq 0) {
+                onWallHit?.let { it('a'[""].hasTag(shootTag)) }
+                if (splashRange > 0) {
+                    splash()
+                }
+                kill()
+            }
+            shootTag.remove('e'[""])
         }
+
     }
 
     private fun splash() {
+        playingTag.remove(self["type = marker"])
         Command.data().merge.storage("jh1236:message", "{death: $killMessage}")
-        var previous = 0
-        val d = (damage / (2 * splashRange)).roundToInt()
-        for (i in 1 until (2 * splashRange).roundToInt()) {
+        var previous = 0.0
+        val d = (damage / (4 * splashRange)).roundToInt()
+        for (i in 1 until (4 * splashRange).roundToInt()) {
             Command.execute()
-                .asat('e'["distance = ${previous}..${i}"].hasTag(playingTag))
+                .asat('e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag))
                 .run {
-                    damageSelf((d * (2 * splashRange - i)).roundToInt())
+                    damageSelf((d * (4 * splashRange - i)).roundToInt())
                 }
-            previous = i
+            previous = (i.toDouble() / 4)
         }
     }
 
     private fun rayCast() {
         Command.data().merge.storage("jh1236:message", "{death: $killMessage}")
         raycastEntity(.25f, {
-            Command.particle(particle, rel(), abs(0, 0, 0), 0.0, particleCount).force(
-                if (cooldown > 1) 'a'[""] else 'a'[""].notHasTag(
-                    shootTag
+            particle?.let { particle ->
+                Command.particle(particle, rel(), abs(0, 0, 0), 0.0, particleCount).force(
+                    if (cooldown > 1) 'a'[""] else 'a'[""].notHasTag(
+                        shootTag
+                    )
                 )
-            )
+            }
             //TODO: stop being lazy
-            Command.execute().unless(loc(0, 0, 0.25) isBlock Blocks.AIR)
+            Command.execute().unless(loc(0, 0, 0.25) isBlock blockTag("jh1236:air"))
                 .run { Command.raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a") }
         }, {
             Command.execute().ifPlaying(self.notHasTag(shootTag).notHasTag(safeTag)).run {
                 safeTag.add(self)
                 damageSelf(damage)
                 onEntityHit?.let {
-                    it(self, 'a'[""].hasTag(shootTag))
+                    this.it(self, 'a'[""].hasTag(shootTag))
                 }
                 if (!piercing) {
                     onWallHit?.let { it(self) }
                     rangeScore.set(0)
                 }
             }
-        }, range * 4, onWallHit = { onWallHit?.let { it(self) } })
+        }, range, onWallHit = { onWallHit?.let { it(self) } })
         safeTag.remove('e'[""])
     }
 
@@ -341,8 +438,4 @@ open class ModularCoasWeapon(name: String, damage: Int) : AbstractCoasWeapon(nam
         )
     }
 
-    fun onShoot(function: () -> Unit): ModularCoasWeapon {
-        this.onShootFunc = function
-        return this
-    }
 }

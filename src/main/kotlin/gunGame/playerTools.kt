@@ -7,13 +7,14 @@ import enums.Anchor
 import enums.Blocks
 import enums.Particles
 import events.EventManager
-import gunGame.weapons.handleStreak
-import gunGame.weapons.medusaTag
-import gunGame.weapons.resetMedusa
-import gunGame.weapons.shootTag
+import gunGame.weapons.*
+import gunGame.weapons.impl.shotCount
+import gunGame.weapons.impl.speedyAmmo
 import internal.commands.impl.execute.Execute
 import lib.debug.Log
 import lib.get
+import lib.idScore
+import structure.Fluorite
 import structure.McFunction
 import utils.*
 import utils.score.Objective
@@ -45,7 +46,11 @@ fun Execute.ifPlaying(player: Selector = self): Execute {
 fun healthTick() {
     Command.execute().As('a'[""].hasTag(playingTag)).If(health[self] lt maxHealth[self]).If(timeSinceHit[self] gte 40)
         .run {
-            health[self] += 10
+            val dif = Fluorite.reuseFakeScore("health")
+            dif.set(maxHealth[self])
+            dif -= health[self]
+            dif.minOf(10)
+            health[self] += dif
         }
     Command.execute().As('a'[""].hasTag(playingTag)).run {
         timeSinceHit[self] += 1
@@ -62,42 +67,52 @@ private val calcKDR = McFunction("jh1236:health/kdr") {
 }
 
 val respawnFunc = McFunction("health/respawn") {
+    Command.tp(self, abs(-16, 3, -89))
     Command.gamemode().adventure(self)
     deadTag.remove(self)
     playingTag.remove(self)
     Command.clear()
+    Command.stopsound(self)
+    speedyAmmo.remove(self)
+    shotCount[self] = 0
+    Command.raw("execute at @s run particle minecraft:entity_effect ~ ~ ~ 0.9960784313725490196078431372549 0.9921568627450980392156862745098 1 1 0 force @s")
     Command.effect().clear
     health[self] = 3000
     maxHealth[self] = 3000
-    Command.tp(self, abs(-16, 3, -89))
 }
 private val dieFunc = McFunction("jh1236:health/die") {
     with(Command) {
+        val tempScore = Fluorite.reuseFakeScore("id")
+        tempScore.set(idScore[self])
+        execute().As('e'[""].hasTag(ModularCoasWeapon.universalProjectile)).If(idScore[self] eq tempScore).run {
+            kill(self)
+        }
         playingTag.remove(self)
         deadTag.add(self)
         clear()
+        speedyAmmo.remove(self)
+        shotCount[self] = 0
         effect().clear
         gamemode().spectator
         spectate('a'["limit = 1"].hasTag(shootTag))
+        raw("execute at @s run particle minecraft:entity_effect ~ ~ ~ 0.9960784313725490196078431372549 0.9921568627450980392156862745098 1 1 0 force @s")
         kills['a'["limit = 1"].hasTag(shootTag)] += 1
         streak['a'["limit = 1"].hasTag(shootTag)] += 1
         streak[self] = 0
         deaths[self] += 1
-        execute().If('a'[""].hasTag(shootTag).notHasTag(deadTag)).run.tellraw(
+        execute().If('e'[""].hasTag(shootTag)).run.tellraw(
             'a'[""],
             """{"nbt":"death", "storage":"jh1236:message","interpret":true}"""
         )
-        execute().unless('a'[""].hasTag(shootTag).notHasTag(deadTag)).run.tellraw(
-            'a'[""],
-            "",
-            """{"selector": "@s","color": "gold"}""",
-            """{"text": " didn't want to live in the same world as "}""",
-            """{"selector": "@a[tag=!$shootTag]","color": "gold"}"""
-        )
-        execute().asat('a'[""].hasTag(shootTag)).run(::handleStreak)
+
+        execute().asat('a'[""].hasTag(shootTag)).run(handleStreak)
         calcKDR()
-        execute().asat('a'[""].hasTag(shootTag)).run(calcKDR)
-        schedule().As(self, 80, respawnFunc)
+        execute().asat('a'[""].hasTag(shootTag)).run {
+            calcKDR
+            resetAmmo()
+            resetCooldown()
+        }
+        schedule().As(self, 80, respawnFunc).append
     }
 }
 
@@ -105,28 +120,34 @@ private val dieFunc = McFunction("jh1236:health/die") {
 val deathEvent = EventManager(dieFunc)
 
 val damageSelf = McMethod("jh1236:health/damage", 1) { (damage) ->
+
     with(Command) {
-        Log.info("Damaged ", self, " for ", damage, " damage!!")
-        If(self.hasTag(medusaTag)) {
-            resetMedusa()
-            damage /= 10
-        }
-        health[self] -= damage
-        timeSinceHit[self] = 0
-        particle(
-            Particles.BLOCK(Blocks.REDSTONE_BLOCK),
-            rel(),
-            abs(0, 0, 0),
-            1.0,
-            20
-        ).force('a'["distance = .75.."])
-        playsound("entity.generic.hurt").player(self["tag =! noSound"], rel(), 2.0, 1.0, 1.0)
-        execute().asat('a'[""].hasTag(shootTag)).run {
-            playsound("entity.arrow.hit_player")
-                .player(self, rel(), 2.0, 1.0, 1.0)
-        }
-        If(health[self] lte 0) {
-            deathEvent.call()
+        If(damage gt 0) {
+            Log.info("Damaged ", self, " for ", damage, " damage!!")
+            If(self.hasTag(medusaTag) and (damage gt 0)) {
+                resetMedusa()
+                damage /= 10
+            }
+            health[self] -= damage
+            timeSinceHit[self] = 0
+            particle(
+                Particles.BLOCK(Blocks.REDSTONE_BLOCK),
+                rel(),
+                abs(0, 0, 0),
+                1.0,
+                20
+            ).force('a'["distance = .75.."])
+            playsound("entity.generic.hurt").player(self["tag =! noSound"], rel(), 2.0, 1.0, 1.0)
+            execute().asat('a'[""].hasTag(shootTag)).run {
+                playsound("entity.arrow.hit_player")
+                    .player(self, rel(), 2.0, 1.0, 1.0)
+            }
+            execute().asat(self.hasTag(ModularCoasWeapon.universalProjectile).hasTag(playingTag)).run {
+                health[self] = 1
+            }
+            If(health[self] lte 0) {
+                deathEvent.call()
+            }
         }
     }
 

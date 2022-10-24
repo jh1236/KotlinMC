@@ -1,10 +1,9 @@
 package gunGame.weapons
 
 import abstractions.PlayerTag
-import structure.McFunction
 import utils.Selector
 
-abstract class AbstractWeapon(val damage: Int, var secondary: Boolean = false) {
+abstract class AbstractWeapon(val name: String, val damage: Int, var secondary: Boolean = false) {
     companion object {
         private val listOfWeapons = arrayListOf<AbstractWeapon>()
         var id = 0
@@ -28,6 +27,14 @@ abstract class AbstractWeapon(val damage: Int, var secondary: Boolean = false) {
         listOfWeapons += this
     }
 
+    val basePath
+        get() = "jh1236:weapons/${if (isReward) "reward" else if (secondary) "secondary" else "primary"}/${
+            name.replace(
+                " ",
+                "_"
+            )
+        }"
+    var isReward: Boolean = false
     protected val safeTag = PlayerTag("safe")
     val myId: Int = ++id
 

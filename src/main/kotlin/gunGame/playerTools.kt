@@ -57,6 +57,10 @@ fun healthTick() {
         Command.title(self)
             .actionbar("[{\"text\":\"Health: \",\"color\": \"#DD3333\", \"bold\" : true},{\"score\": {\"name\": \"@s\",\"objective\": \"jh.health\"}, \"bold\" : false}]")
     }
+    Command.execute().asat('a'[""].hasTag(playingTag)).positioned(Vec3("~", "-30", "~")).As(self["dy = 10"]).run {
+        Command.data().merge.storage("jh1236:message", """{death:'["",{"selector":"@s","color":"gold"}," slipped and fell"]'}""")
+        dieFunc()
+    }
 
 }
 
@@ -84,7 +88,7 @@ private val dieFunc = McFunction("jh1236:health/die") {
     with(Command) {
         val tempScore = Fluorite.reuseFakeScore("id")
         tempScore.set(idScore[self])
-        execute().As('e'[""].hasTag(ModularCoasWeapon.universalProjectile)).If(idScore[self] eq tempScore).run {
+        execute().As('e'[""].hasTag(ProjectileWeapon.universalProjectile)).If(idScore[self] eq tempScore).run {
             kill(self)
         }
         playingTag.remove(self)
@@ -100,7 +104,7 @@ private val dieFunc = McFunction("jh1236:health/die") {
         streak['a'["limit = 1"].hasTag(shootTag)] += 1
         streak[self] = 0
         deaths[self] += 1
-        execute().If('e'[""].hasTag(shootTag)).run.tellraw(
+        tellraw(
             'a'[""],
             """{"nbt":"death", "storage":"jh1236:message","interpret":true}"""
         )
@@ -142,7 +146,7 @@ val damageSelf = McMethod("jh1236:health/damage", 1) { (damage) ->
                 playsound("entity.arrow.hit_player")
                     .player(self, rel(), 2.0, 1.0, 1.0)
             }
-            execute().asat(self.hasTag(ModularCoasWeapon.universalProjectile).hasTag(playingTag)).run {
+            execute().asat(self.hasTag(ProjectileWeapon.universalProjectile).hasTag(playingTag)).run {
                 health[self] = 1
             }
             If(health[self] lte 0) {

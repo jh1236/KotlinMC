@@ -21,8 +21,8 @@ import utils.Vec2
 import utils.loc
 import utils.rel
 
-lateinit var catGun: ModularCoasWeapon
-lateinit var danceGun: ModularCoasWeapon
+lateinit var catGun: RaycastWeapon
+lateinit var danceGun: RaycastWeapon
 val handleStreak = McFunction("jh1236:health/streak")
 
 
@@ -41,7 +41,7 @@ fun loadCat() {
         }
     }
 
-    catGun = ModularCoasWeapon("Cat Gun", 0).withParticle(Particles.ANGRY_VILLAGER)
+    catGun = RaycastBuilder("Cat Gun", 0).withParticle(Particles.ANGRY_VILLAGER)
         .addSound("minecraft:entity.cat.ambient").withCooldown(1.5).onWallHit {
             Command.summon(
                 Entities.HUSK,
@@ -64,7 +64,7 @@ fun loadCat() {
 }
 
 fun loadDance() {
-    danceGun = ModularCoasWeapon("Dance Gun", 500).withCooldown(1.0).withCustomModelData(112)
+    danceGun = RaycastBuilder("Dance Gun", 500).withCooldown(1.0).withCustomModelData(112)
         .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " lost a dance-off with "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
         .withPiercing()
         .withRange(100)

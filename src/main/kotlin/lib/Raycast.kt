@@ -6,8 +6,8 @@ import abstractions.unless
 import commands.Command
 import enums.Blocks
 import enums.Entities
-import enums.blockTag
 import gunGame.asIntersects
+import lib.debug.Log
 import structure.Fluorite
 import utils.Selector
 import utils.loc
@@ -26,7 +26,7 @@ fun raycast(change: Float, forEach: (Score) -> Unit = {}, onHit: () -> Unit = {}
             If(rangeScore eq 0) {
                 onHit()
             }
-            If((rel() isBlock blockTag("jh1236:air")).not()) {
+            If((rel() isBlock Blocks.tag("jh1236:air")).not()) {
                 rangeScore.set(0)
                 onHit()
             }
@@ -45,6 +45,7 @@ fun raycastEntity(
     if (count >= 0) {
         rangeScore.set(count)
     }
+    Log.info(rangeScore)
     with(Command) {
         execute().positioned(loc(0, 0, 0.25)).run {
             Do {
@@ -52,7 +53,7 @@ fun raycastEntity(
                 If(rangeScore eq 0) {
                     onWallHit?.let { it() }
                 }
-                execute().unless(rel() isBlock blockTag("jh1236:air")).run {
+                execute().unless(rel() isBlock Blocks.tag("jh1236:air")).run {
                     rangeScore.set(0)
                     onWallHit?.let { it() }
                 }

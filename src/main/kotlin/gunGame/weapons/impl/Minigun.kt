@@ -1,13 +1,11 @@
 package gunGame.weapons.impl
 
-import abstractions.If
 import abstractions.PlayerTag
 import abstractions.asat
 import abstractions.flow.If
 import abstractions.hasTag
 import commands.Command
 import enums.Anchor
-import enums.Particles
 import gunGame.playingTag
 import gunGame.self
 import gunGame.weapons.*
@@ -21,29 +19,30 @@ import utils.score.Objective
 private val score = Objective("shoot")
 
 
-class Minigun : ModularCoasWeapon("Minigun", 240) {
+class Minigun : RaycastWeapon(
+    "Minigun",
+    240,
+    4,
+    0.0,
+    50,
+    5.0,
+    sound = listOf("block.note_block.hat" to 2.0),
+    range = 400,
+    spread = 3.0,
+    killMessage = """'["",{"selector": "@s","color": "gold"},{"text": " was peppered down by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""",
+    secondary = false
+) {
 
     companion object {
         var myId: Int = 0
         val minigunTag = PlayerTag("minigun")
     }
 
+    val fireFunc = McFunction("$basePath/shoot")
+
 
     init {
         Minigun.myId = myId
-        withClipSize(50)
-        withParticle(Particles.CRIT)
-        withCustomModelData(4)
-        withRange(400)
-        withSpread(3.0)
-        withReload(5.0)
-        withCooldown(0.0)
-        onReload {
-            minigunTag.remove(self)
-        }
-        addSound("block.note_block.hat", 2.0)
-        withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was peppered down by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
-        done()
         Fluorite.tickFile += {
             score['a'["scores = {$score = 1..}"].hasTag(playingTag)] -= 1
             Command.execute()
@@ -61,7 +60,7 @@ class Minigun : ModularCoasWeapon("Minigun", 240) {
             Command.execute().asat('a'["scores = {$score = 2..}", "predicate = jh1236:ready"].hasTag(playingTag))
                 .anchored(Anchor.EYES).run {
                     minigunTag.add(self)
-                    fire()
+                    fireFunc()
                 }
             Command.execute().asat('a'["scores = {$score = 1}", "predicate = jh1236:ready"].hasTag(playingTag)).run {
                 resetAmmoForId(myId)
@@ -71,18 +70,21 @@ class Minigun : ModularCoasWeapon("Minigun", 240) {
                 score[self] = 0
             }
         }
+        setup()
     }
 
-    lateinit var fire: McFunction
-
-    override fun shoot() {
+    override fun fire() {
         score[self] = 8
         minigunTag.add(self)
-        fire = McFunction("$basePath/shoot") {
-            super.shoot()
-            If(self["nbt = {SelectedItem:{tag:{jh1236:{ammo:{value:50}}}}}"]) {
+        fireFunc.append {
+            super.fire()
+            If(decrementClip(0, 1) eq 1) {
+                applyCoolDown((reload * 20).toInt())
                 Command.playsound("block.conduit.deactivate").master(self, rel(), 1, 0.0)
+                minigunTag.remove(self)
+                score[self] = 0
             }
         }
+        fireFunc()
     }
 }

@@ -9,6 +9,7 @@ import enums.Items
 import gunGame.playingTag
 import gunGame.self
 import gunGame.weapons.impl.Minigun
+import gunGame.weapons.impl.clipOfDexterity
 import gunGame.weapons.impl.shotCount
 import gunGame.weapons.impl.speedyAmmo
 import internal.commands.impl.execute.Execute
@@ -94,6 +95,20 @@ val resetAmmoForId = McMethod("jh1236:ammo/reset_special", 1) { (id) ->
         }
     }
 }
+val setAmmoForId = McMethod("jh1236:ammo/reset_special_2", 2) { (id, ammoValue) ->
+    val weaponScore = Fluorite.reuseFakeScore("id")
+    repeat(9) {
+        weaponScore.set(0)
+        weaponScore.set(self.data["Inventory[{Slot:${it}b}].tag.jh1236.weapon"])
+        Command.execute().If(id eq weaponScore).run {
+            copyItemfromSlotAndRun("hotbar.$it") { itemData ->
+                itemData["tag.jh1236.ammo.value"] = ammoValue
+                itemData["Count"] = ammoValue
+            }
+        }
+    }
+}
+
 
 val setCooldownForId = McMethod("jh1236:cooldown/reset_special", 2) { (id, cooldown) ->
     val weaponScore = Fluorite.reuseFakeScore("id")

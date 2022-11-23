@@ -3,7 +3,7 @@ package gunGame.weapons
 import abstractions.PlayerTag
 import utils.Selector
 
-abstract class AbstractWeapon(val name: String, val damage: Int, var secondary: Boolean = false) {
+abstract class AbstractWeapon(val name: String, val damage: Int, var secondary: Boolean = false, var isReward: Boolean = false) {
     companion object {
         private val listOfWeapons = arrayListOf<AbstractWeapon>()
         var id = 0
@@ -34,7 +34,6 @@ abstract class AbstractWeapon(val name: String, val damage: Int, var secondary: 
                 "_"
             )
         }"
-    var isReward: Boolean = false
     protected val safeTag = PlayerTag("safe")
     val myId: Int = ++id
 

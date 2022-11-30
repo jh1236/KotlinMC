@@ -26,9 +26,11 @@ fun raycast(change: Float, forEach: (Score) -> Unit = {}, onHit: () -> Unit = {}
             If(rangeScore eq 0) {
                 onHit()
             }
-            If(doesCollide() eq 1) {
+            val a = doesCollide()
+            If(a eq 1) {
                 rangeScore.set(0)
                 onHit()
+                Command.raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a")
             }
             rangeScore -= 1
         }.moved(loc(0, 0, change)).While(rangeScore gte 0)

@@ -72,15 +72,6 @@
         </SOURCES>
       </library>
     </orderEntry>
-    <orderEntry type="library" name="KotlinJavaRuntime" level="project" />
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/../McFunction/out/artifacts/McFunction.main.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
+    <orderEntry type="library" exported="" name="KotlinJavaRuntime" level="project" />
   </component>
 </module>

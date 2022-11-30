@@ -93,9 +93,6 @@ open class RaycastWeapon(
                     )
                 )
             }
-            //TODO: stop being lazy
-            Command.execute().unless(loc(0, 0, 0.25) isBlock Blocks.tag("jh1236:air"))
-                .run { Command.raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a") }
         }, {
             Command.execute().ifPlaying(self.notHasTag(shootTag).notHasTag(safeTag)).run {
                 safeTag.add(self)

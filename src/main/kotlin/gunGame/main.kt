@@ -24,7 +24,7 @@ import structure.Fluorite
 import structure.McFunction
 import utils.*
 
-val dp = Datapack("Gun Game", "jh1236")
+val dp = Datapack("Gun Game Experimental", "jh1236")
 val self = Selector('s')
 val allGear = McFunction("all_gear")
 
@@ -39,7 +39,7 @@ fun main() {
     )
 
     Log.logLevel = Log.TRACE
-    Debug.debugMode = false
+    Debug.debugMode = true
     addDebug()
 
     coasSetup()

@@ -26,7 +26,7 @@ fun raycast(change: Float, forEach: (Score) -> Unit = {}, onHit: () -> Unit = {}
             If(rangeScore eq 0) {
                 onHit()
             }
-            If((rel() isBlock Blocks.tag("jh1236:air")).not()) {
+            If(doesCollide() eq 1) {
                 rangeScore.set(0)
                 onHit()
             }
@@ -53,7 +53,7 @@ fun raycastEntity(
                 If(rangeScore eq 0) {
                     onWallHit?.let { it() }
                 }
-                execute().unless(rel() isBlock Blocks.tag("jh1236:air")).run {
+                If(doesCollide() eq 1) {
                     rangeScore.set(0)
                     onWallHit?.let { it() }
                 }

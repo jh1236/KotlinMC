@@ -3,7 +3,6 @@ package gunGame.weapons.impl
 import abstractions.*
 import abstractions.flow.If
 import commands.Command
-import enums.Entities
 import enums.Items
 import enums.Particles
 import gunGame.bigExplosion
@@ -16,7 +15,6 @@ import lib.get
 import lib.idScore
 import structure.Fluorite
 import structure.McFunction
-import utils.abs
 import utils.rel
 import utils.score.Objective
 import utils.score.ScoreConstant

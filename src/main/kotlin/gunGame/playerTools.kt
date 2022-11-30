@@ -137,7 +137,7 @@ val damageSelf = McMethod("jh1236:health/damage", 1) { (damage) ->
             particle(
                 Particles.BLOCK(Blocks.REDSTONE_BLOCK),
                 rel(),
-                abs(0, 0, 0),
+                0, 0, 0,
                 1.0,
                 20
             ).force('a'["distance = .75.."])

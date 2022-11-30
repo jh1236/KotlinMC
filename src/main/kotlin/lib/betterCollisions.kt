@@ -8,7 +8,9 @@ import abstractions.hasTag
 import commands.Command
 import enums.Blocks
 import enums.Entities
+import enums.nbt
 import structure.Fluorite
+import structure.McFunction
 import utils.rel
 
 val getX = ReturningMethod("Lach993:fetch_x_partial", 0) {
@@ -17,7 +19,7 @@ val getX = ReturningMethod("Lach993:fetch_x_partial", 0) {
     Command.summon(Entities.MARKER, rel(), "{Tags:[$tag]}")
     tempScore.set('e'[""].hasTag(tag)["limit=1"].data["Pos[0]"], 100.0)
     Command.kill('e'["tag=$tag"])
-    Command.execute().asat('p'[""]).run(Command.scoreboard().players.get(tempScore))
+    Command.execute().asat('p'[""]).run.scoreboard().players.get(tempScore)
     tempScore %= 100
     tempScore
 }
@@ -28,7 +30,7 @@ val getY = ReturningMethod("Lach993:fetch_y_partial", 0) {
     Command.summon(Entities.MARKER, rel(), "{Tags:[$tag]}")
     tempScore.set('e'[""].hasTag(tag)["limit=1"].data["Pos[1]"], 100.0)
     Command.kill('e'["tag=$tag"])
-    Command.execute().asat('p'[""]).run(Command.scoreboard().players.get(tempScore))
+    Command.execute().asat('p'[""]).run.scoreboard().players.get(tempScore)
     tempScore %= 100
     tempScore
 }
@@ -39,13 +41,15 @@ val getZ = ReturningMethod("Lach993:fetch_Z_partial", 0) {
     Command.summon(Entities.MARKER, rel(), "{Tags:[$tag]}")
     tempScore.set('e'[""].hasTag(tag)["limit=1"].data["Pos[2]"], 100.0)
     Command.kill('e'["tag=$tag"])
-    Command.execute().asat('p'[""]).run(Command.scoreboard().players.get(tempScore))
+    Command.execute().asat('p'[""]).run.scoreboard().players.get(tempScore)
     tempScore %= 100
     tempScore
 }
 
 
 val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
+    val panes = Blocks.newTag(Blocks.tag("c:glass_panes"), Blocks.IRON_BARS)
+
     // returns 1 if collides. 0 otherwise
     val retScore = Fluorite.reuseFakeScore("collides", 1)
     If(rel() isBlock Blocks.tag("jh1236:air")){
@@ -122,8 +126,8 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
             }
         } // optimise
     }.ElseIf(rel() isBlock Blocks.tag("minecraft:walls")){ //fuck walls so fucking much holy shit please jump off cliff
-        val z = Fluorite.getNewFakeScore("tempz", getZ().copy())
-        val x = Fluorite.getNewFakeScore("tempx", getX().copy())
+        val z = Fluorite.getNewFakeScore("tempz", getZ())
+        val x = Fluorite.getNewFakeScore("tempx", getX())
         val y = getY()
         retScore.set(0)
         If(x inRange 30..70 and (z inRange 30..70)) {
@@ -151,8 +155,8 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
         }
 
     }.ElseIf(rel() isBlock Blocks.tag("minecraft:fences")) {
-        val z = Fluorite.getNewFakeScore("tempz", getZ().copy())
-        val x = Fluorite.getNewFakeScore("tempx", getX().copy())
+        val z = Fluorite.getNewFakeScore("tempz", getZ())
+        val x = Fluorite.getNewFakeScore("tempx", getX())
         val y = getY()
         retScore.set(0)
         If(x inRange 38..62 and (z inRange 38..62)) {
@@ -171,31 +175,31 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
             retScore.set(1)
         }
 
-    }.ElseIf(rel() isBlock Blocks.tag("c:glass_panes")) {
-        val z = Fluorite.getNewFakeScore("tempz", getZ().copy())
-        val x = Fluorite.getNewFakeScore("tempx", getX().copy())
+    }.ElseIf(rel() isBlock panes) {
+        val z = Fluorite.getNewFakeScore("tempz", getZ())
+        val x = Fluorite.getNewFakeScore("tempx", getX())
         val y = getY()
         retScore.set(0)
         If(x inRange 40..60 and (z inRange 40..60)) {
             retScore.set(1)
         }
-        If(rel() isBlock Blocks.tag("c:glass_panes[west=true]") and (x inRange 0..50) and (z inRange 40..60)) {
+        If(rel() isBlock panes.nbt("[west=true]") and (x inRange 0..50) and (z inRange 40..60)) {
             retScore.set(1)
         }
-        If(rel() isBlock Blocks.tag("c:glass_panes[east=true]") and (x inRange 50..100) and (z inRange 40..60)) {
+        If(rel() isBlock panes.nbt("[east=true]") and (x inRange 50..100) and (z inRange 40..60)) {
             retScore.set(1)
         }
-        If(rel() isBlock Blocks.tag("c:glass_panes[north=true]") and (z inRange 0..50) and (x inRange 40..60)) {
+        If(rel() isBlock panes.nbt("[north=true]") and (z inRange 0..50) and (x inRange 40..60)) {
             retScore.set(1)
         }
-        If(rel() isBlock Blocks.tag("c:glass_panes[south=true]") and (z inRange 50..100) and (x inRange 40..60)) {
+        If(rel() isBlock panes.nbt("[south=true]") and (z inRange 50..100) and (x inRange 40..60)) {
             retScore.set(1)
         }
 
     }.ElseIf(rel() isBlock Blocks.tag("minecraft:stairs")){
         retScore.set(0)
-        val z = Fluorite.getNewFakeScore("tempz", getZ().copy())
-        val x = Fluorite.getNewFakeScore("tempx", getX().copy())
+        val z = Fluorite.getNewFakeScore("tempz", getZ())
+        val x = Fluorite.getNewFakeScore("tempx", getX())
         val y = getY()
         //mm yummy, 22 different conditions
         If(rel() isBlock Blocks.tag("minecraft:stairs[half = bottom]") and (y lte 50)){
@@ -313,7 +317,78 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
             }
         }
 
+    }.ElseIf(rel() isBlock Blocks.tag("minecraft:fence_gates")){
+        retScore.set(0)
+        If (rel() isBlock Blocks.tag("minecraft:fence_gates[in_wall=true]")){
+            fencegate_helper(19..75, retScore)
+        }
+        If (rel() isBlock Blocks.tag("minecraft:fence_gates[in_wall=false]")){
+            fencegate_helper(38..93, retScore)
+        }
+
     }
 
+
+
     retScore
+}
+
+fun fencegate_helper(ylimits: IntRange = 19..75, retscore: utils.score.Score) {
+    val z = Fluorite.getNewFakeScore("tempz", getZ())
+    val x = Fluorite.getNewFakeScore("tempx", getX())
+    val y = getY()
+    If(y inRange ylimits) {
+        If(rel() isBlock Blocks.tag("minecraft:fence_gates[open=false]")){
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=east]")){
+                If(x inRange 43..57){
+                    retscore.set(1)
+                }
+            }
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=west]")){
+                If(x inRange 43..57){
+                    retscore.set(1)
+                }
+            }
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=north]")){
+                If(z inRange 43..57){
+                    retscore.set(1)
+                }
+            }
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=south]")){
+                If(z inRange 43..57){
+                    retscore.set(1)
+                }
+            }
+        }
+        If(rel() isBlock Blocks.tag("minecraft:fence_gates[open=true]")){
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=east]")){
+                If(!(z inRange 25..75)){
+                    If(x inRange 43..95){
+                        retscore.set(1)
+                    }
+                }
+            }
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=west]")){
+                If(!(z inRange 25..75)){
+                    If(x inRange 5..57){
+                        retscore.set(1)
+                    }
+                }
+            }
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=north]")){
+                If(!(x inRange 25..75)){
+                    If(z inRange 5..57){
+                        retscore.set(1)
+                    }
+                }
+            }
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=south]")){
+                If(!(x inRange 25..75)){
+                    If(z inRange 43..95){
+                        retscore.set(1)
+                    }
+                }
+            }
+        }
+    }
 }

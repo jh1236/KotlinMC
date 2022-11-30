@@ -30,16 +30,16 @@ val allGear = McFunction("all_gear")
 
 fun main() {
     ExternalFile(
-        "G:/Games/Minecraft Servers/Gun Server/world/datapacks/backup/packle/data/jh1236/tags/blocks/air.json",
+        "G:/Programming/kotlin/KotlinMc/src/main/resources/air.json",
         "data/jh1236/tags/blocks/air.json"
     )
     ExternalFile(
-        "G:/Games/Minecraft Servers/Gun Server/world/datapacks/backup/packle/data/jh1236/predicates/sneaking.json",
+        "G:/Programming/kotlin/KotlinMc/src/main/resources/sneaking.json",
         "data/jh1236/predicates/sneaking.json"
     )
 
     Log.logLevel = Log.TRACE
-    Debug.debugMode = true
+    Debug.debugMode = false
     addDebug()
 
     coasSetup()

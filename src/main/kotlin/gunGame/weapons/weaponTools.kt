@@ -30,7 +30,7 @@ import utils.score.ScoreConstant
 val shootTag = PlayerTag("shot")
 fun coolDownSetup() {
     ExternalFile(
-        "G:/Games/Minecraft Servers/Gun Server/world/datapacks/backup/packle/data/jh1236/predicates/ready.json",
+        "G:/Programming/kotlin/KotlinMc/src/main/resources/ready.json",
         "data/jh1236/predicates/ready.json"
     )
 }

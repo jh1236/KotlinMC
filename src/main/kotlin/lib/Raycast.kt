@@ -58,9 +58,7 @@ fun raycastEntity(
                 If(doesCollide() eq 1) {
                     rangeScore.set(0)
                     onWallHit?.let { it() }
-                }
-                If(rel() isBlock Blocks.REDSTONE_BLOCK) {
-                    summon(Entities.MARKER, loc(0, 0, -.25), "{Tags:[particle]}")
+                    raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a")
                 }
                 execute().asIntersects(Selector('e')).run(onHit)
                 rangeScore -= 1

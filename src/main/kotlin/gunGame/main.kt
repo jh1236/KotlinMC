@@ -123,7 +123,7 @@ fun mcMain() {
     Command.raw("execute as @a[tag = !$playingTag, predicate = jh1236:sneaking] at @s if block ~ ~-.25 ~ waxed_oxidized_copper positioned ~ 0 ~ if entity @s[dy = 100] run tp @s ~ ~-2 ~")
     Command.raw("execute as @a[tag = !$playingTag, predicate = jh1236:sneaking] at @s if block ~ ~-.25 ~ waxed_oxidized_copper positioned ~ 0 ~ unless entity @s[dy = 100] run tp @s ~ ~4 ~")
     Command.raw("execute as @e[tag = block] run data merge entity @s {Time: -10000}")
-    Command.execute().asat('e'["type = item", "tag = !safe"]).If(self.data["Item.tag.jh1236.weapon"]).If('a'["distance = ..2"].hasTag(playingTag)).run {
+    Command.execute().asat('e'["type = item", "tag = !safe"]).If(self.data["Item.tag.jh1236.weapon"]).If('a'[""].hasTag(playingTag)).run {
         Command.tag(self).add("safe")
         self.data["{}"] = "{PickupDelay:0s}"
     }

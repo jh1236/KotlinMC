@@ -130,7 +130,6 @@ private fun loadBazooka() {
             rel(0,0.2,0),
             "{ExplosionRadius:1b,Fuse:0,ignited:1b}"
         )
-        Command.particle(Particles.BLOCK_MARKER(Blocks.RED_MUSHROOM_BLOCK))
     }
     bazooka =
         ProjectileBuilder("Bazooka", 6000).withCooldown(4.0).withParticle(Particles.LARGE_SMOKE, 10).withProjectile(3)

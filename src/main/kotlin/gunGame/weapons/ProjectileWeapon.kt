@@ -176,7 +176,6 @@ open class ProjectileWeapon(
         Command.data().merge.storage("jh1236:message", "{death: $killMessage}")
         var previous = 0.0
         val d = (damage / (4 * splashRange)).roundToInt()
-        Command.say("@a[tag = $shootTag]")
         for (i in 1 until (4 * splashRange).roundToInt()) {
             if (canHitOwner) {
                 Command.execute().asat('e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag)).run {

@@ -50,7 +50,7 @@ private fun loadCompass() {
     compass = object : AbstractWeapon("Compass", 0, true) {
         val func = McFunction(basePath) {
             Command.execute().anchored(Anchor.EYES)
-                .facing('e'["limit = 1", "sort = nearest", "distance = .5.."].hasTag(playingTag), Anchor.EYES)
+                .facing('a'["limit = 1", "sort = nearest", "distance = .5.."].hasTag(playingTag), Anchor.EYES)
                 .positioned(loc(0, -.5, .25)).run {
                     raycast(
                         .25f,

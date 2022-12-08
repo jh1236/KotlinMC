@@ -3,12 +3,20 @@ package gunGame.weapons
 import abstractions.*
 import abstractions.flow.If
 import commands.Command
-import enums.*
+import enums.Anchor
+import enums.Blocks
+import enums.Entities
+import enums.IParticle
 import gunGame.*
-import lib.*
+import lib.get
+import lib.idScore
+import lib.rangeScore
 import structure.Fluorite
 import structure.McFunction
-import utils.*
+import utils.Selector
+import utils.Vec2
+import utils.loc
+import utils.rel
 import kotlin.math.roundToInt
 
 
@@ -93,11 +101,13 @@ open class ProjectileWeapon(
             )
         }
         new.remove('e'[""])
-        val file = McFunction("$basePath/projectile")
+        val file = McFunction("$basePath/projectile") {
+            hit.set(0)
+        }
         if (projectileSpeed > 1) {
             val file2 = McFunction("$basePath/projectile/tick") { projectileTick() }
             repeat(projectileSpeed) {
-                file += { Command.execute().at(self).run(file2) }
+                file += { Command.execute().at(self).If(hit eq 0).run(file2) }
             }
         } else {
             file += { projectileTick() }
@@ -114,28 +124,26 @@ open class ProjectileWeapon(
             execute().As('e'[""].hasTag(playingTag)).If(idScore[self] eq tempScore).run {
                 shootTag.add(self)
             }
-            particle?.let { particle(it, rel(),0, 0, 0,0.0, particleCount) }
+            particle?.let { particle(it, rel(), 0, 0, 0, 0.0, particleCount) }
             onProjectileTick?.let { this@ProjectileWeapon.it(self) }
+            hit.set(0)
             if (projectileSpeed > 0) {
                 execute().positioned(loc(0.0, 0.0, .25)).If(rel() isBlock Blocks.tag("jh1236:air")).run.tp(
                     self, rel()
                 )
                 execute().positioned(loc(0.0, 0.0, .25)).unless(rel() isBlock Blocks.tag("jh1236:air")).run {
-                    if (splashRange > 0) {
-                        Command.execute().positioned(rel(0, 1, 0)).run { splash() }
-                    }
+                    hit.set(1)
                     onWallHit?.let { it(self) }
                     health[self].reset()
                     kill()
                 }
             }
-            hit.set(0)
             val ex = if (activationDelay > 0) {
                 execute().unless(health[self] gt range - activationDelay)
             } else {
                 execute()
             }
-            ex.asIntersects('e'[""].hasTag(playingTag))
+            ex.unless(hit eq 1).asIntersects('e'[""].hasTag(playingTag))
 
             if (!canHitOwner) {
                 ex.unless(idScore[self] eq tempScore)
@@ -145,15 +153,12 @@ open class ProjectileWeapon(
                 data().merge.storage("jh1236:message", "{death: $killMessage}")
                 hit.set(1)
                 damageSelf(damage)
-                if (splashRange > 0) {
-                    splash()
-                }
                 onEntityHit?.let { this@ProjectileWeapon.it(self, 'a'[""].hasTag(shootTag)) }
             }
-            If(hit eq 1) {
-                kill()
-            }
             health[self] -= 1
+            If(hit eq 1) {
+                health[self] = 0
+            }
             If(health[self] eq 0) {
                 onWallHit?.let { it('a'[""].hasTag(shootTag)) }
                 if (splashRange > 0) {
@@ -171,9 +176,18 @@ open class ProjectileWeapon(
         Command.data().merge.storage("jh1236:message", "{death: $killMessage}")
         var previous = 0.0
         val d = (damage / (4 * splashRange)).roundToInt()
+        Command.say("@a[tag = $shootTag]")
         for (i in 1 until (4 * splashRange).roundToInt()) {
-            Command.execute().asat('e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag)).run {
-                damageSelf((d * (4 * splashRange - i)).roundToInt())
+            if (canHitOwner) {
+                Command.execute().asat('e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag)).run {
+                    damageSelf((d * (4 * splashRange - i)).roundToInt())
+                }
+            } else {
+                Command.execute()
+                    .asat('e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag).notHasTag(shootTag))
+                    .run {
+                        damageSelf((d * (4 * splashRange - i)).roundToInt())
+                    }
             }
             previous = (i.toDouble() / 4)
         }

@@ -179,7 +179,6 @@ fun coolDownTick() {
             xp().set(self, 0).points
         }
     }
-    ammoDisplayTick()
 }
 
 val decrementClip = ReturningMethod("jh1236:dec_clip", 2) {

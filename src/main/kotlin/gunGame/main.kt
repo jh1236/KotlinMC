@@ -39,7 +39,7 @@ fun main() {
     )
 
     Log.logLevel = Log.TRACE
-    Debug.debugMode = false
+    Debug.debugMode = true
     addDebug()
 
     coasSetup()

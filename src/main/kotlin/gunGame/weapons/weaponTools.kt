@@ -202,12 +202,13 @@ val resetAmmo = McFunction("ammo/reset") {
     repeat(9) {
         If(self.hasData("Inventory[{Slot:${it}b}].tag.jh1236.ammo.max")) {
             copyItemfromSlotAndRun("hotbar.$it") { itemData ->
+                Command.say("$it!!")
                 itemData["tag.jh1236.ammo.value"] = itemData["tag.jh1236.ammo.max"]
                 val temp = Fluorite.reuseFakeScore("count")
-                temp.set(itemData["tag.jh1236.ammo.count"])
+                Command.tellraw('a'[""], temp)
+                temp.set(itemData["tag.jh1236.ammo.max"])
                 temp.maxOf(1)
                 itemData["Count"] = temp
-
             }
         }
     }

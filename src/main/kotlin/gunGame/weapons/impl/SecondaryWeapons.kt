@@ -449,15 +449,17 @@ private fun loadTome() {
     fun tomeHitsWall() {
         Command.particle(Particles.FLASH, rel(), 0, 0, 0, 1.0, 20)
         Command.particle(Particles.CLOUD, rel(), 0.1, 0.1, 0.1, 1.0, 20)
-        Command.playsound("minecraft:block.beacon.deactivate").master('a'[""], rel(), 1.0)
+        Command.playsound("minecraft:item.firecharge.use").master('a'[""], rel(), 1.0)
     }
     tomeOfAir =
-        ProjectileBuilder("Tome of Air", 3000).withCooldown(4.0).withParticle(Particles.CLOUD, 10).withProjectile(1, 1)
-            .withRange(50).withCustomModelData(7).addSound("minecraft:block.enchantment_table.use", 1.3).onWallHit {
+        ProjectileBuilder("Tome of Fire", 3000).withCooldown(4.0).withParticle(Particles.FLAME, 10).withProjectile(1, 1)
+            .withRange(50).withCustomModelData(7).addSound("minecraft:entity.tnt.primed", 1.3).onWallHit {
                 tomeHitsWall()
             }.onEntityHit { _, _ ->
                 tomeHitsWall()
             }.onProjectileTick {
+                Command.particle(Particles.DUST(1.0, 0.0, 0.0, 2.0), rel(), .2, .2, .2, 1, 10)
+                Command.particle(Particles.FLAME, rel(), .2, .2, .2, .1, 10)
                 Command.execute().lerpFacing('p'[""].notHasTag(shootTag).hasTag(playingTag), 1, 7).run.tp(
                     self, rel(), Vec2("~", "~")
                 )

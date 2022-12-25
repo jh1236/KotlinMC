@@ -5,12 +5,18 @@ import abstractions.flow.If
 import commands.Command
 import enums.*
 import gunGame.*
-import lib.*
+import lib.debug.Log
+import lib.get
+import lib.idScore
+import lib.rangeScore
+import lib.raycastEntity
 import structure.Fluorite
 import structure.McFunction
-import utils.*
+import utils.Selector
+import utils.Vec2
+import utils.loc
+import utils.rel
 import kotlin.math.roundToInt
-
 
 open class ProjectileWeapon(
     name: String,
@@ -114,7 +120,7 @@ open class ProjectileWeapon(
             execute().As('e'[""].hasTag(playingTag)).If(idScore[self] eq tempScore).run {
                 shootTag.add(self)
             }
-            particle?.let { particle(it, rel(),0, 0, 0,0.0, particleCount) }
+            particle?.let { particle(it, rel(), 0, 0, 0, 0.0, particleCount) }
             onProjectileTick?.let { this@ProjectileWeapon.it(self) }
             if (projectileSpeed > 0) {
                 execute().positioned(loc(0.0, 0.0, .25)).If(rel() isBlock Blocks.tag("jh1236:air")).run.tp(
@@ -122,7 +128,7 @@ open class ProjectileWeapon(
                 )
                 execute().positioned(loc(0.0, 0.0, .25)).unless(rel() isBlock Blocks.tag("jh1236:air")).run {
                     if (splashRange > 0) {
-                        Command.execute().positioned(rel(0, 1, 0)).run { splash() }
+                        execute().positioned(rel(0, 1, 0)).run { splash() }
                     }
                     onWallHit?.let { it(self) }
                     health[self].reset()
@@ -135,7 +141,7 @@ open class ProjectileWeapon(
             } else {
                 execute()
             }
-            ex.asIntersects('e'[""].hasTag(playingTag))
+            ex.asIntersects('e'[""].notHasTag(projectile).hasTag(playingTag))
 
             if (!canHitOwner) {
                 ex.unless(idScore[self] eq tempScore)
@@ -168,15 +174,31 @@ open class ProjectileWeapon(
 
     private fun splash() {
         playingTag.remove(self["type = marker"])
+        val temp = PlayerTag("tempProjectile")
+        temp.add(self)
         Command.data().merge.storage("jh1236:message", "{death: $killMessage}")
         var previous = 0.0
         val d = (damage / (4 * splashRange)).roundToInt()
         for (i in 1 until (4 * splashRange).roundToInt()) {
             Command.execute().asat('e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag)).run {
-                damageSelf((d * (4 * splashRange - i)).roundToInt())
+                hit.set(0)
+                Command.execute().anchored(Anchor.EYES).facing('e'["limit = 1"].hasTag(temp), Anchor.EYES).run {
+                    Command.particle(Particles.END_ROD, loc(0, 0, 2), 0, 0, 0, 0, 0)
+                    raycastEntity(.25f, { Command.particle(Particles.END_ROD) }, {
+                        If(self.hasTag(temp)) {
+                            hit.set(1)
+                        }
+                    }, (splashRange * 4).roundToInt())
+                }
+                If(hit eq 1) {
+                    damageSelf((d * (4 * splashRange - i)).roundToInt())
+                }
             }
             previous = (i.toDouble() / 4)
         }
+        temp.remove(self)
     }
 
+
 }
+

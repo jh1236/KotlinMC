@@ -26,9 +26,11 @@ fun raycast(change: Float, forEach: (Score) -> Unit = {}, onHit: () -> Unit = {}
             If(rangeScore eq 0) {
                 onHit()
             }
-            If((rel() isBlock Blocks.tag("jh1236:air")).not()) {
+            val a = doesCollide()
+            If(a eq 1) {
                 rangeScore.set(0)
                 onHit()
+                Command.raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a")
             }
             rangeScore -= 1
         }.moved(loc(0, 0, change)).While(rangeScore gte 0)
@@ -53,12 +55,10 @@ fun raycastEntity(
                 If(rangeScore eq 0) {
                     onWallHit?.let { it() }
                 }
-                execute().unless(rel() isBlock Blocks.tag("jh1236:air")).run {
+                If(doesCollide() eq 1) {
                     rangeScore.set(0)
                     onWallHit?.let { it() }
-                }
-                If(rel() isBlock Blocks.REDSTONE_BLOCK) {
-                    summon(Entities.MARKER, loc(0, 0, -.25), "{Tags:[particle]}")
+                    raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a")
                 }
                 execute().asIntersects(Selector('e')).run(onHit)
                 rangeScore -= 1

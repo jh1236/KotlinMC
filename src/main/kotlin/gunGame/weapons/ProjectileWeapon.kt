@@ -5,11 +5,7 @@ import abstractions.flow.If
 import commands.Command
 import enums.*
 import gunGame.*
-import lib.debug.Log
-import lib.get
-import lib.idScore
-import lib.rangeScore
-import lib.raycastEntity
+import lib.*
 import structure.Fluorite
 import structure.McFunction
 import utils.Selector
@@ -17,6 +13,7 @@ import utils.Vec2
 import utils.loc
 import utils.rel
 import kotlin.math.roundToInt
+
 
 open class ProjectileWeapon(
     name: String,
@@ -99,11 +96,13 @@ open class ProjectileWeapon(
             )
         }
         new.remove('e'[""])
-        val file = McFunction("$basePath/projectile")
+        val file = McFunction("$basePath/projectile") {
+            hit.set(0)
+        }
         if (projectileSpeed > 1) {
             val file2 = McFunction("$basePath/projectile/tick") { projectileTick() }
             repeat(projectileSpeed) {
-                file += { Command.execute().at(self).run(file2) }
+                file += { Command.execute().at(self).If(hit eq 0).run(file2) }
             }
         } else {
             file += { projectileTick() }
@@ -122,25 +121,24 @@ open class ProjectileWeapon(
             }
             particle?.let { particle(it, rel(), 0, 0, 0, 0.0, particleCount) }
             onProjectileTick?.let { this@ProjectileWeapon.it(self) }
+            hit.set(0)
             if (projectileSpeed > 0) {
                 execute().positioned(loc(0.0, 0.0, .25)).If(rel() isBlock Blocks.tag("jh1236:air")).run.tp(
                     self, rel()
                 )
                 execute().positioned(loc(0.0, 0.0, .25)).unless(rel() isBlock Blocks.tag("jh1236:air")).run {
-                    if (splashRange > 0) {
-                        execute().positioned(rel(0, 1, 0)).run { splash() }
-                    }
+                    hit.set(1)
                     onWallHit?.let { it(self) }
                     health[self].reset()
                     kill()
                 }
             }
-            hit.set(0)
             val ex = if (activationDelay > 0) {
                 execute().unless(health[self] gt range - activationDelay)
             } else {
                 execute()
             }
+            ex.unless(hit eq 1).asIntersects('e'[""].hasTag(playingTag))
             ex.asIntersects('e'[""].notHasTag(projectile).hasTag(playingTag))
 
             if (!canHitOwner) {
@@ -151,15 +149,12 @@ open class ProjectileWeapon(
                 data().merge.storage("jh1236:message", "{death: $killMessage}")
                 hit.set(1)
                 damageSelf(damage)
-                if (splashRange > 0) {
-                    splash()
-                }
                 onEntityHit?.let { this@ProjectileWeapon.it(self, 'a'[""].hasTag(shootTag)) }
             }
-            If(hit eq 1) {
-                kill()
-            }
             health[self] -= 1
+            If(hit eq 1) {
+                health[self] = 0
+            }
             If(health[self] eq 0) {
                 onWallHit?.let { it('a'[""].hasTag(shootTag)) }
                 if (splashRange > 0) {
@@ -180,7 +175,8 @@ open class ProjectileWeapon(
         var previous = 0.0
         val d = (damage / (4 * splashRange)).roundToInt()
         for (i in 1 until (4 * splashRange).roundToInt()) {
-            Command.execute().asat('e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag)).run {
+            val selector = if (canHitOwner) 'e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag) else 'e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag).notHasTag(shootTag)
+            Command.execute().asat(selector).run {
                 hit.set(0)
                 Command.execute().anchored(Anchor.EYES).facing('e'["limit = 1"].hasTag(temp), Anchor.EYES).run {
                     Command.particle(Particles.END_ROD, loc(0, 0, 2), 0, 0, 0, 0, 0)
@@ -199,6 +195,4 @@ open class ProjectileWeapon(
         temp.remove(self)
     }
 
-
 }
-

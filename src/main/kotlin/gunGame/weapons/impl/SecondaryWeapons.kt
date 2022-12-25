@@ -50,7 +50,7 @@ private fun loadCompass() {
     compass = object : AbstractWeapon("Compass", 0, true) {
         val func = McFunction(basePath) {
             Command.execute().anchored(Anchor.EYES)
-                .facing('e'["limit = 1", "sort = nearest", "distance = .5.."].hasTag(playingTag), Anchor.EYES)
+                .facing('a'["limit = 1", "sort = nearest", "distance = .5.."].hasTag(playingTag), Anchor.EYES)
                 .positioned(loc(0, -.5, .25)).run {
                     raycast(
                         .25f,
@@ -97,11 +97,9 @@ private fun loadTp() {
     ) {
         private fun calcDistance(): Score {
             val distance = Fluorite.getNewFakeScore("distance")
-            val lastShot = Fluorite.reuseFakeScore("gametime")
             distance.set { Command.time().query.gametime }
-            lastShot.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
-            If(self["tag = noCooldown"]) { lastShot.set(0) }
-            distance -= lastShot
+            If(self["tag = noCooldown"]) { cdBeforeShot.set(0) }
+            distance -= cdBeforeShot
             distance.minOf(100)
             distance *= 2
             distance /= 5
@@ -110,6 +108,7 @@ private fun loadTp() {
         }
 
         val func = McFunction("$basePath/tick") {
+            cdBeforeShot.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
             val ammoDisplay = calcDistance()
             rangeScore.set(ammoDisplay)
             //TODO: stop being lazy
@@ -139,7 +138,7 @@ private fun loadTp() {
             rangeScore.set(calcDistance())
             super.fire()
             copyHeldItemToBlockAndRun {
-                it[""] = "{ Count:1 }"
+                it[""] = "{Count:1}"
             }
         }
     }
@@ -404,11 +403,11 @@ private fun loadLeap() {
         ) {
             private fun calcDistance(): Score {
                 val distance = Fluorite.reuseFakeScore("distance")
-                val lastShot = Fluorite.reuseFakeScore("gametime")
+
                 distance.set { Command.time().query.gametime }
-                lastShot.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
-                If(self["tag = noCooldown"]) { lastShot.set(0) }
-                distance -= lastShot
+
+                If(self["tag = noCooldown"]) { cdBeforeShot.set(0) }
+                distance -= cdBeforeShot
                 distance.minOf(75)
                 distance *= 3
                 distance /= 5
@@ -417,6 +416,7 @@ private fun loadLeap() {
             }
 
             val func = McFunction("$basePath/tick") {
+                cdBeforeShot.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
                 val ammoDisplay = calcDistance()
                 ammoDisplay /= 3
                 copyHeldItemToBlockAndRun {

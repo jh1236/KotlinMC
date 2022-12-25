@@ -10,7 +10,10 @@ import gunGame.weapons.*
 import lib.get
 import structure.Fluorite
 import structure.McFunction
-import utils.*
+import utils.Selector
+import utils.Vec2
+import utils.loc
+import utils.rel
 import utils.score.Objective
 
 
@@ -55,8 +58,10 @@ private fun loadStaff() {
                         staffTag
                     )
                 ).anchored(Anchor.EYES).facing(
-                    'e'["sort = nearest", "limit = 1", "distance=.5.."].hasTag(playingTag).notHasTag(invisTag).notHasTag(
-                        deadTag),
+                    'e'["sort = nearest", "limit = 1", "distance=.5.."].hasTag(playingTag).notHasTag(invisTag)
+                        .notHasTag(
+                            deadTag
+                        ),
                     Anchor.EYES
                 ).run(fireFunc)
 
@@ -119,12 +124,26 @@ private fun loadShotgun() {
 }
 
 private fun loadBazooka() {
-
+    fun creeper() {
+        Command.summon(
+            Entities.CREEPER,
+            rel(0,0.2,0),
+            "{ExplosionRadius:1b,Fuse:0,ignited:1b}"
+        )
+    }
     bazooka =
         ProjectileBuilder("Bazooka", 6000).withCooldown(4.0).withParticle(Particles.LARGE_SMOKE, 10).withProjectile(3)
             .withRange(100).withCustomModelData(3).addSound("minecraft:entity.firework_rocket.launch", 0.0)
-            .withSplash(3.5).onWallHit { bigExplosion() }
-            .onEntityHit { _, _ -> bigExplosion() }
+            .withSplash(3.5).onWallHit {
+                bigExplosion()
+                Command.execute().As('e'["distance = ..3"].hasTag(playingTag)).facing(self, Anchor.FEET).positioned(self).positioned(loc(0,0,-1.3)).run {
+                    creeper()
+                }
+            }
+            .onEntityHit { _, _ ->
+                bigExplosion()
+
+            }
             .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was blown away by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
             .done()
 }
@@ -177,9 +196,10 @@ private fun loadLaser() {
             killMessage = """'["",{"selector": "@s","color": "gold"},{"text": " was ricocheted by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""",
             secondary = false
         ) {
-            init{
+            init {
                 setup()
             }
+
             override fun fire() {
                 Command.summon(Entities.MARKER, rel(), "{Tags:[$laserTag]}")
                 Command.execute().As('e'[""].hasTag(laserTag)).run.tp(self, rel(), Vec2("~", "~"))
@@ -208,7 +228,7 @@ private fun loadNecromancy() {
                 health[playerShooting] += 500
             }
         }.withRange(200).onWallHit {
-            Command.particle(Particles.SOUL, rel(),0, 0, 0,.1, 20).normal
+            Command.particle(Particles.SOUL, rel(), 0, 0, 0, .1, 20).normal
         }.withCustomModelData(6)
         .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was bewitched by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
         .done()

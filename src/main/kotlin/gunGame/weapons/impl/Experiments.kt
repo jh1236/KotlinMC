@@ -114,6 +114,7 @@ fun loadLandMines() {
     mines = ProjectileBuilder("Mine", 10000)
 
         .withRange(30 * 5)
+        .canHitOwner()
         .withProjectile(0, 5)
         .withActivationDelay(2.0)
         .withSplash(8.0)

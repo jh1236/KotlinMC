@@ -8,8 +8,6 @@ import commands.Command
 import enums.Items
 import gunGame.playingTag
 import gunGame.self
-import gunGame.weapons.impl.Minigun
-import gunGame.weapons.impl.clipOfDexterity
 import gunGame.weapons.impl.shotCount
 import gunGame.weapons.impl.speedyAmmo
 import internal.commands.impl.execute.Execute
@@ -30,7 +28,7 @@ import utils.score.ScoreConstant
 val shootTag = PlayerTag("shot")
 fun coolDownSetup() {
     ExternalFile(
-        "G:/Games/Minecraft Servers/Gun Server/world/datapacks/backup/packle/data/jh1236/predicates/ready.json",
+        "G:/Programming/kotlin/KotlinMc/src/main/resources/ready.json",
         "data/jh1236/predicates/ready.json"
     )
 }
@@ -62,6 +60,7 @@ val applyCoolDown = McMethod("apply_cd", 1) { (coolDown) ->
 fun applyCooldownToSlot(cd: Int, slot: String) {
     applyCooldownToSlot(ScoreConstant(cd), slot)
 }
+
 fun applyCooldownToSlot(cd: Score, slot: String) {
     If(self["tag = noCooldown"]) { cd.set(1) }
     val gameTime = Fluorite.getNewGarbageScore()
@@ -152,34 +151,33 @@ fun coolDownTick() {
     with(Command) {
         execute().asat('a'["predicate = !jh1236:ready"].hasTag(playingTag))
             .If(self hasData "SelectedItem.tag.jh1236.weapon").run {
-            val gameTime = Fluorite.reuseFakeScore("gametime")
-            gameTime.set { time().query.gametime }
-            val coolDown = Fluorite.reuseFakeScore("cd")
-            coolDown.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
-            val max = Fluorite.reuseFakeScore("max")
-            max.set(self.data["SelectedItem.tag.jh1236.cooldown.max"])
-            If(gameTime gte coolDown and (coolDown gte 0)) {
-                If(max gt 1) { playsound("block.note_block.pling").player(self, rel(), 1, 2.0) }
-                applyNbtToHeldItem("{jh1236:{ready:1b}}")
+                val gameTime = Fluorite.reuseFakeScore("gametime")
+                gameTime.set { time().query.gametime }
+                val coolDown = Fluorite.reuseFakeScore("cd")
+                coolDown.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
+                val max = Fluorite.reuseFakeScore("max")
+                max.set(self.data["SelectedItem.tag.jh1236.cooldown.max"])
+                If(gameTime gte coolDown and (coolDown gte 0)) {
+                    If(max gt 1) { playsound("block.note_block.pling").player(self, rel(), 1, 2.0) }
+                    applyNbtToHeldItem("{jh1236:{ready:1b}}")
+                }
+                xp().set(self, 10).levels
+                coolDown -= gameTime
+                coolDown *= 25
+                coolDown /= max
+                coolDown *= -1
+                coolDown += 25
+                If(gameTime lt 0) {
+                    coolDown.set(0)
+                }
+                Tree(coolDown, 0..25) {
+                    xp().set(self, it).points
+                }
             }
-            xp().set(self, 10).levels
-            coolDown -= gameTime
-            coolDown *= 25
-            coolDown /= max
-            coolDown *= -1
-            coolDown += 25
-            If(gameTime lt 0) {
-                coolDown.set(0)
-            }
-            Tree(coolDown, 0..25) {
-                xp().set(self, it).points
-            }
-        }
         execute().asat('a'[""].hasTag(playingTag)).If.predicate("jh1236:ready").run {
             xp().set(self, 0).points
         }
     }
-    ammoDisplayTick()
 }
 
 val decrementClip = ReturningMethod("jh1236:dec_clip", 2) {
@@ -202,10 +200,15 @@ val decrementClip = ReturningMethod("jh1236:dec_clip", 2) {
 }
 val resetAmmo = McFunction("ammo/reset") {
     repeat(9) {
-        If(self.hasData("Inventory[{Slot:${it}b}].tag.jh1236.ammo")) {
+        If(self.hasData("Inventory[{Slot:${it}b}].tag.jh1236.ammo.max")) {
             copyItemfromSlotAndRun("hotbar.$it") { itemData ->
+                Command.say("$it!!")
                 itemData["tag.jh1236.ammo.value"] = itemData["tag.jh1236.ammo.max"]
-                itemData["Count"] = itemData["tag.jh1236.ammo.value"]
+                val temp = Fluorite.reuseFakeScore("count")
+                Command.tellraw('a'[""], temp)
+                temp.set(itemData["tag.jh1236.ammo.max"])
+                temp.maxOf(1)
+                itemData["Count"] = temp
             }
         }
     }

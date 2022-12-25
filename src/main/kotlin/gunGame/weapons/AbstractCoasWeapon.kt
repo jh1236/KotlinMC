@@ -38,6 +38,8 @@ abstract class AbstractCoasWeapon(
         }
     }
 
+    val cdBeforeShot = Fluorite.reuseFakeScore("b4shot")
+
     val shootFunction: McFunction = McFunction(basePath)
 
     fun setup() {
@@ -55,14 +57,16 @@ abstract class AbstractCoasWeapon(
 
     private fun shoot() {
         Log.debug("shot weapon with id $myId!!")
-        fire()
         If (!self["nbt = {SelectedItem:{tag:{jh1236:{ready:0b}}}}"]) {
+            cdBeforeShot.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
+            Log.info("asdkgasd:", cdBeforeShot)
             if (clipsize != 1) {
                 applyCoolDown(decrementClip((cooldown * 20).roundToInt(), (reload * 20).roundToInt()))
             } else {
                 applyCoolDown((cooldown * 20).roundToInt())
             }
         }
+        fire()
     }
 
     abstract fun fire()

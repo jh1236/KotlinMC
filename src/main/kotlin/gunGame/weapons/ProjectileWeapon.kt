@@ -2,16 +2,22 @@ package gunGame.weapons
 
 import abstractions.*
 import abstractions.flow.If
+import abstractions.score.Score
 import commands.Command
-import enums.*
+import enums.Anchor
+import enums.Entities
+import enums.IParticle
+import enums.Particles
 import gunGame.*
-import lib.*
+import internal.commands.impl.execute.OnTarget
+import lib.Quad
+import lib.debug.Log
+import lib.doesCollide
+import lib.rangeScore
+import lib.raycastEntity
 import structure.Fluorite
 import structure.McFunction
-import utils.Selector
-import utils.Vec2
-import utils.loc
-import utils.rel
+import utils.*
 import kotlin.math.roundToInt
 
 
@@ -22,13 +28,13 @@ open class ProjectileWeapon(
     cooldown: Double,
     clipsize: Int = 1,
     reload: Double = 0.0,
+    protected val projectileEntity: Entities = Entities.MARKER,
     protected var ableBeShot: Boolean = false,
     var activationDelay: Int = -1,
     protected var maxAllowed: Int = -1,
-    protected var particleCount: Int = 1,
     protected var canHitOwner: Boolean = false,
     protected var sound: ArrayList<Pair<String, Double>> = arrayListOf(),
-    protected var particle: IParticle? = null,
+    private var particleArray: List<Quad<IParticle, Int, Number, Number>>,
     var range: Int = -1,
     var onWallHit: ((Selector) -> Unit)? = null,
     protected var onProjectileTick: (ProjectileWeapon.(Selector) -> Unit)? = null,
@@ -50,13 +56,20 @@ open class ProjectileWeapon(
 
     override fun fire() {
         if (maxAllowed > 0) {
-            If('e'[""].hasTag(projectile).count() gte maxAllowed) {
+            val processingTag = PlayerTag("temp")
+            val tempScore = Fluorite.reuseFakeScore("id")
+            tempScore.set(idScore[self])
+            Command.execute().asat('e'[""].hasTag(projectile)).If(idScore[self] eq tempScore).run {
+                processingTag.add(self)
+            }
+            If('e'[""].hasTag(processingTag).count() gte maxAllowed) {
                 val lowestHealth = Fluorite.reuseFakeScore("temp", range)
-                Command.execute().asat('e'[""].hasTag(projectile)).run {
+                Command.execute().asat('e'[""].hasTag(processingTag)).run {
                     lowestHealth.minOf(health[self])
                 }
-                Command.execute().asat('e'[""].hasTag(projectile)).If(health[self] eq lowestHealth).run.kill()
+                Command.execute().asat('e'[""].hasTag(processingTag)).If(health[self] eq lowestHealth).run.kill()
             }
+            processingTag.remove('e'[""])
         }
         shootTag.add(self)
         projectile()
@@ -68,34 +81,39 @@ open class ProjectileWeapon(
 
 
     private fun projectile() {
-        val new = PlayerTag("new")
-        if (!ableBeShot) {
-            Command.summon(
-                Entities.MARKER, rel(), "{Tags:[$projectile,$new, $universalProjectile]}"
-            )
-        } else {
-            Command.summon(
-                Entities.ARMOR_STAND,
-                rel(),
-                "{Tags:[$projectile,$new, $universalProjectile, $playingTag], Small:1b, Invulnerable:1b, NoGravity:1b, Invisible:1b}"
-            )
-        }
 
-        val newEntity = 'e'[""].hasTag(new).hasTag(projectile)
-        Command.execute().As(newEntity).run {
+        val entity = if (ableBeShot) Entities.ARMOR_STAND else projectileEntity
+        val tag = PlayerTag("newProjectile")
+
+        Command.execute().summon(entity).run {
+            if (!ableBeShot) {
+                self.data["{}"] = "{NoGravity:1b}"
+            } else {
+                self.data["{}"] = "{Small:1b, Invulnerable:1b, NoGravity:1b, Invisible:1b}"
+            }
+            universalProjectile.add(self)
+            projectile.add(self)
+            if (ableBeShot) {
+                playingTag.add(self)
+            }
             idScore[self].set(idScore['a'["limit = 1"].hasTag(shootTag)])
             if (range > 0) {
                 health[self] = range
             } else {
                 health[self] = rangeScore
             }
+            if (projectileSpeed > 0) {
+                tag.add(self)
+            }
         }
         if (projectileSpeed > 0) {
             Command.execute().asat('a'[""].hasTag(shootTag)).anchored(Anchor.EYES).run.tp(
-                newEntity, loc(), Vec2("~", "~")
+                'e'[""].hasTag(tag),
+                loc(),
+                Vec2("~", "~")
             )
+            tag.remove('e'[""])
         }
-        new.remove('e'[""])
         val file = McFunction("$basePath/projectile") {
             hit.set(0)
         }
@@ -116,17 +134,27 @@ open class ProjectileWeapon(
         with(Command) {
 
             tempScore.set(idScore[self])
-            execute().As('e'[""].hasTag(playingTag)).If(idScore[self] eq tempScore).run {
+            execute().As('a'[""].hasTag(playingTag)).If(idScore[self] eq tempScore).run {
                 shootTag.add(self)
             }
-            particle?.let { particle(it, rel(), 0, 0, 0, 0.0, particleCount) }
+            particleArray.forEach { (particle, count, radius, speed) ->
+                particle(particle, rel(), radius, radius, radius, speed, count).force(
+                    if (cooldown > .05) 'a'[""] else 'a'[""].notHasTag(
+                        shootTag
+                    )
+                )
+
+            }
             onProjectileTick?.let { this@ProjectileWeapon.it(self) }
             hit.set(0)
             if (projectileSpeed > 0) {
-                execute().positioned(loc(0.0, 0.0, .25)).If(rel() isBlock Blocks.tag("jh1236:air")).run.tp(
-                    self, rel()
-                )
-                execute().positioned(loc(0.0, 0.0, .25)).unless(rel() isBlock Blocks.tag("jh1236:air")).run {
+                lateinit var check: Score
+                execute().positioned(loc(0.0, 0.0, .25)).run { check = doesCollide() }
+                If(check eq 0) {
+                    tp(
+                        self, loc(0, 0, .25)
+                    )
+                }.Else {
                     hit.set(1)
                     onWallHit?.let { it(self) }
                     health[self].reset()
@@ -146,20 +174,20 @@ open class ProjectileWeapon(
             }
 
             ex.run {
-                data().merge.storage("jh1236:message", "{death: $killMessage}")
+                Storage("jh1236:message")["{}"] = "{death: $killMessage}"
                 hit.set(1)
+                health[self] = 0
                 damageSelf(damage)
                 onEntityHit?.let { this@ProjectileWeapon.it(self, 'a'[""].hasTag(shootTag)) }
             }
             health[self] -= 1
-            If(hit eq 1) {
-                health[self] = 0
-            }
-            If(health[self] eq 0) {
+            If(health[self] lte 0) {
                 onWallHit?.let { it('a'[""].hasTag(shootTag)) }
                 if (splashRange > 0) {
                     splash()
                 }
+                execute().on(OnTarget.PASSENGERS).run.ride(self).dismount
+                tp(self, rel(0, -1024, 0))
                 kill()
             }
             shootTag.remove('e'[""])
@@ -171,11 +199,15 @@ open class ProjectileWeapon(
         playingTag.remove(self["type = marker"])
         val temp = PlayerTag("tempProjectile")
         temp.add(self)
-        Command.data().merge.storage("jh1236:message", "{death: $killMessage}")
+        deathStorage["death"] = killMessage
         var previous = 0.0
         val d = (damage / (4 * splashRange)).roundToInt()
         for (i in 1 until (4 * splashRange).roundToInt()) {
-            val selector = if (canHitOwner) 'e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag) else 'e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag).notHasTag(shootTag)
+            val selector =
+                if (canHitOwner) 'e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(playingTag) else 'e'["distance = ${previous}..${i.toDouble() / 4}"].hasTag(
+                    playingTag
+                ).notHasTag(shootTag)
+            Log.info('e'[""].hasTag(shootTag))
             Command.execute().asat(selector).run {
                 hit.set(0)
                 Command.execute().anchored(Anchor.EYES).facing('e'["limit = 1"].hasTag(temp), Anchor.EYES).run {

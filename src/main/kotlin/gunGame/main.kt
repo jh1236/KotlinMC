@@ -1,47 +1,56 @@
 package gunGame
 
-import abstractions.If
-import abstractions.asat
-import abstractions.hasTag
-import abstractions.notHasTag
+import abstractions.*
+import abstractions.flow.If
+import abstractions.score.Criteria
+import abstractions.score.Objective
 import commands.Command
 import enums.Blocks
 import enums.Effects
 import enums.Items
+import enums.Particles
 import events.ScoreEventManager
 import gunGame.maps.spawnSetup
 import gunGame.weapons.*
 import gunGame.weapons.impl.loadExperiments
+import gunGame.weapons.impl.loadFun
 import gunGame.weapons.impl.loadPrimaries
-import lib.Trigger
+import gunGame.weapons.impl.loadSecondaries
 import lib.debug.Debug
 import lib.debug.Log
-import lib.get
-import lib.getId
-import structure.Datapack
-import structure.ExternalFile
-import structure.Fluorite
-import structure.McFunction
+import structure.*
 import utils.*
 
 val dp = Datapack("Gun Game Experimental", "jh1236")
 val self = Selector('s')
 val allGear = McFunction("all_gear")
+val lagTag = PlayerTag("lag")
+val idScore = Objective("id")
+
 
 fun main() {
     ExternalFile(
-        "G:/Programming/kotlin/KotlinMc/src/main/resources/air.json",
+        "G:/Programming/kotlin/GunGame/src/main/resources/air.json",
         "data/jh1236/tags/blocks/air.json"
     )
     ExternalFile(
-        "G:/Programming/kotlin/KotlinMc/src/main/resources/sneaking.json",
+        "G:/Programming/kotlin/GunGame/src/main/resources/sneaking.json",
         "data/jh1236/predicates/sneaking.json"
     )
+    ExternalFile(
+        "G:/Programming/kotlin/GunGame/src/main/resources/damage.json",
+        "data/jh1236/damage_type/shot.json"
+    )
+    TagFile(TagFile.TagType.DAMAGE_TYPE, "minecraft:bypasses_cooldown").add("jh1236:shot")
 
     Log.logLevel = Log.TRACE
-    Debug.debugMode = true
+    Debug.debugMode = false
     addDebug()
-
+    Fluorite.tickFile += ::healthTick
+    Fluorite.tickFile += ::coolDownTick
+    Fluorite.tickFile += ::ammoDisplayTick
+    Fluorite.tickFile += ::mcMain
+    Fluorite.loadFile += ::mcLoad
     coasSetup()
     coolDownSetup()
 
@@ -61,17 +70,24 @@ fun main() {
             )
             Command.fill(abs(-92, 15, 11), abs(-92, 14, 10), Blocks.RED_MUSHROOM_BLOCK)
         }
+    }
 
+    McFunction("particles/dagger") {
+        for (i in 1..5) {
+            Command.particle(Particles.DUST(.3, .3, .3, .5), loc(0, 0, i / 10.0), 0, 0, 0, 0, 0)
+        }
+        for (i in 0..2) {
+            Command.particle(Particles.DUST(.15, .15, .15, .5), loc(0, 0, -i / 10.0), 0, 0, 0, 0, 0)
+            Command.particle(Particles.DUST(.15, .15, .15, .5), loc(0, i / 12.0, 0), 0, 0, 0, 0, 0)
+            Command.particle(Particles.DUST(.15, .15, .15, .5), loc(0, -i / 12.0, 0), 0, 0, 0, 0, 0)
+        }
     }
 
 
     Trigger("map", Selector("Jh1236")) { Fluorite.reuseFakeScore("map").set(it) }
+    Trigger("skin", 'a'[""]) { secondSkinTag.toggle(self) }
 
-    Fluorite.tickFile += ::healthTick
-    Fluorite.tickFile += ::coolDownTick
-    Fluorite.tickFile += ::ammoDisplayTick
-    Fluorite.tickFile += ::mcMain
-    Fluorite.loadFile += ::mcLoad
+
 
     allGear.append {
         playingTag.add(self)
@@ -92,6 +108,9 @@ fun main() {
 
 
 fun mcLoad() {
+    Command.execute().unless(idScore["%system"] eq idScore["%system"]).run {
+        idScore["%system"] = 0
+    }
     Command.forceload().add(Vec2(12360, 0))
     Command.setblock(abs(12360, -64, 0), Blocks.YELLOW_SHULKER_BOX)
 }
@@ -101,10 +120,7 @@ fun coasSetup() {
     AbstractCoasWeapon.setCoasFunction(coasManager)
     coasManager += {
         AbstractCoasWeapon.currentId.set(
-            Command.data().get.entity(
-                self,
-                "SelectedItem.tag.jh1236.weapon"
-            )
+            self.data["SelectedItem.tag.jh1236.weapon"].get()
         )
     }
 }
@@ -112,7 +128,10 @@ fun coasSetup() {
 
 fun mcMain() {
     Command.execute().asat(Selector('a')).run {
-        getId()
+        If((idScore[self] eq idScore[self]).not()) {
+            idScore[self].set { idScore["%system"] }
+            idScore["%system"] += 1
+        }
     }
     Command.effect().give('a'["tag =! noSpeed"].hasTag(playingTag), Effects.SPEED, 10, 1, true)
     Command.effect().give('a'["tag =! noSpeed"].notHasTag(playingTag), Effects.SPEED, 10, 3, true)
@@ -123,10 +142,11 @@ fun mcMain() {
     Command.raw("execute as @a[tag = !$playingTag, predicate = jh1236:sneaking] at @s if block ~ ~-.25 ~ waxed_oxidized_copper positioned ~ 0 ~ if entity @s[dy = 100] run tp @s ~ ~-2 ~")
     Command.raw("execute as @a[tag = !$playingTag, predicate = jh1236:sneaking] at @s if block ~ ~-.25 ~ waxed_oxidized_copper positioned ~ 0 ~ unless entity @s[dy = 100] run tp @s ~ ~4 ~")
     Command.raw("execute as @e[tag = block] run data merge entity @s {Time: -10000}")
-    Command.execute().asat('e'["type = item", "tag = !safe"]).If(self.data["Item.tag.jh1236.weapon"]).If('a'[""].hasTag(playingTag)).run {
-        Command.tag(self).add("safe")
-        self.data["{}"] = "{PickupDelay:0s}"
-    }
+    Command.execute().asat('e'["type = item", "tag = !safe"]).If(self.data["Item.tag.jh1236.weapon"])
+        .If('a'[""].hasTag(playingTag)).run {
+            Command.tag(self).add("safe")
+            self.data["{}"] = "{PickupDelay:0s}"
+        }
     Command.kill('e'["type = item, tag =! safe"])
 
 }

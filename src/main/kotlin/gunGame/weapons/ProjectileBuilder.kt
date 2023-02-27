@@ -1,6 +1,7 @@
 package gunGame.weapons
 
 import enums.IParticle
+import lib.Quad
 import utils.Selector
 import kotlin.math.roundToInt
 
@@ -14,7 +15,7 @@ class ProjectileBuilder(val name: String, val damage: Int) {
     private var particleCount: Int = 1
     private var canHitOwner: Boolean = false
     private var sound = arrayListOf<Pair<String, Double>>()
-    private var particle: IParticle? = null
+    private var particleArray = arrayListOf<Quad<IParticle, Int, Number, Number>>()
     private var reload = 0.0
     private var cooldown = 0.0
     private var clipSize = 1
@@ -91,9 +92,8 @@ class ProjectileBuilder(val name: String, val damage: Int) {
     }
 
 
-    fun withParticle(particle: IParticle, count: Int = 1): ProjectileBuilder {
-        this.particle = particle
-        this.particleCount = count
+    fun addParticle(particle: IParticle, count: Int = 1, radius: Number = 0.0, speed: Number = 0.0): ProjectileBuilder {
+        particleArray.add(Quad(particle, count, radius, speed))
         return this
     }
 
@@ -147,10 +147,9 @@ class ProjectileBuilder(val name: String, val damage: Int) {
             ableBeShot = ableBeShot,
             activationDelay = activationDelay,
             maxAllowed = maxAllowed,
-            particleCount = particleCount,
             canHitOwner = canHitOwner,
             sound = sound,
-            particle = particle,
+            particleArray = particleArray,
             range = range,
             onWallHit = onWallHit,
             onProjectileTick = onProjectileTick,

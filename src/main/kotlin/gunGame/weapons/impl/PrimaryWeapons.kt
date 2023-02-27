@@ -1,20 +1,21 @@
 package gunGame.weapons.impl
 
-import abstractions.*
+import abstractions.PlayerTag
+import abstractions.asat
 import abstractions.flow.If
+import abstractions.flow.Tree
+import abstractions.hasTag
+import abstractions.notHasTag
+import abstractions.score.Objective
 import abstractions.variables.NBTTypes
 import commands.Command
 import enums.*
 import gunGame.*
 import gunGame.weapons.*
-import lib.get
+import lib.Quad
 import structure.Fluorite
 import structure.McFunction
-import utils.Selector
-import utils.Vec2
-import utils.loc
-import utils.rel
-import utils.score.Objective
+import utils.*
 
 
 lateinit var sniper: RaycastWeapon
@@ -39,8 +40,8 @@ private fun loadStaff() {
         1.0,
         1,
         1.0,
-        particle = Particles.TOTEM_OF_UNDYING,
-        range = 25,
+        particleArray = arrayListOf(Quad(Particles.TOTEM_OF_UNDYING, 1, 0.0, 0.0)),
+        range = 75,
         onEntityHit = { _, shooter ->
             staffTag.add(shooter)
             applyCoolDown(2)
@@ -48,8 +49,9 @@ private fun loadStaff() {
             bonusDamage[shooter] += damage
         },
         killMessage = """'["",{"selector": "@a[tag=$shootTag]","color": "gold"},{"text": " was trash and no-aimed "},{"selector": "@s","color": "gold"}]'""",
-        secondary = false
-    ) {
+        secondary = false,
+
+        ) {
 
         init {
             Fluorite.tickFile += {
@@ -109,17 +111,54 @@ private fun blank() {
 }
 
 private fun loadSniper() {
-    sniper = RaycastBuilder("Sniper", 4000).withCooldown(5.0).withParticle(Particles.END_ROD)
+    sniper = RaycastBuilder("Sniper", 4000).withCooldown(5.0).addParticle(Particles.END_ROD)
         .addSound("item.shield.block", 1.2).withCustomModelData(1).withRange(200).withPiercing()
         .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was no-scoped by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
         .done()
 }
 
-private fun loadShotgun() {
-    shotgun = RaycastBuilder("Shotgun", 500).withParticle(Particles.CRIT).withReload(3.75).withCooldown(.15)
+private fun oldloadShotgun() {
+    shotgun = RaycastBuilder("Shotgun", 500).addParticle(Particles.CRIT).withReload(3.75).withCooldown(.15)
         .withClipSize(2).withSpread(5.0).withBulletsPerShot(8).addSound("entity.generic.explode", 1.4)
         .addSound("block.chain.hit", 0.0).withCustomModelData(2).withRange(10)
         .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was filled with lead by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
+        .done()
+}
+
+private fun loadShotgun() {
+    val colorTable = arrayOf(
+        Triple(255, 25, 25),
+        Triple(255, 146, 3),
+        Triple(251, 255, 3),
+        Triple(9, 255, 0),
+        Triple(0, 255, 251),
+        Triple(0, 30, 255),
+        Triple(232, 12, 221),
+        Triple(166, 0, 255),
+    )
+
+    val countScore = Fluorite.reuseFakeScore("count")
+    val colorFunc = McFunction {
+        Tree(countScore, 0..7) {
+            val (r, g, b) = colorTable[it]
+            val p = Particles.DUST(r / 255.0, g / 255.0, b / 255.0, 1.0)
+            Command.particle(p, loc(), 0, 0, 0, 0, 1)
+            Command.particle(p, loc(0, 0, -0.0625), 0, 0, 0, 0, 1).force('a'[""].notHasTag(lagTag))
+            Command.particle(p, loc(0, 0, -0.125), 0, 0, 0, 0, 1).force('a'[""].notHasTag(lagTag))
+            Command.particle(p, loc(0, 0, -0.1875), 0, 0, 0, 0, 1).force('a'[""].notHasTag(lagTag))
+        }
+    }
+    shotgun = RaycastBuilder("Shotgun", 500).withReload(3.75)
+        .withCooldown(.15)
+        .withClipSize(2).withSpread(5.0).withBulletsPerShot(8).addSound("entity.generic.explode", 1.4)
+        .addSound("block.chain.hit", 0.0).withCustomModelData(2).withRange(10)
+        .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was filled with lead by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
+        .onFireBullet {
+            countScore += 1
+            countScore %= 8
+        }.onRaycastTick {
+            colorFunc()
+        }
         .done()
 }
 
@@ -127,18 +166,19 @@ private fun loadBazooka() {
     fun creeper() {
         Command.summon(
             Entities.CREEPER,
-            rel(0,0.2,0),
+            rel(0, 0.2, 0),
             "{ExplosionRadius:1b,Fuse:0,ignited:1b}"
         )
     }
     bazooka =
-        ProjectileBuilder("Bazooka", 6000).withCooldown(4.0).withParticle(Particles.LARGE_SMOKE, 10).withProjectile(3)
+        ProjectileBuilder("Bazooka", 6000).withCooldown(4.0).addParticle(Particles.LARGE_SMOKE, 10).withProjectile(3)
             .withRange(100).withCustomModelData(3).addSound("minecraft:entity.firework_rocket.launch", 0.0)
             .withSplash(3.5).onWallHit {
                 bigExplosion()
-                Command.execute().As('e'["distance = ..3"].hasTag(playingTag)).facing(self, Anchor.FEET).positioned(self).positioned(loc(0,0,-1.3)).run {
-                    creeper()
-                }
+                Command.execute().As('e'["distance = ..3"].hasTag(playingTag)).facing(self, Anchor.FEET)
+                    .positioned(self).positioned(loc(0, 0, -1.3)).run {
+                        creeper()
+                    }
             }
             .onEntityHit { _, _ ->
                 bigExplosion()
@@ -170,7 +210,7 @@ private fun loadLaser() {
             5,
             3.0,
             sound = listOf("block.conduit.attack.target" to 2.0),
-            particle = Particles.FALLING_DUST(Blocks.REDSTONE_BLOCK),
+            particleArray = arrayListOf(Quad(Particles.FALLING_DUST(Blocks.REDSTONE_BLOCK), 1, 0.0, 0.0)),
             range = 100,
             onWallHit = {
                 If((bounce gt 0) and !(loc(0, 0, .25) isBlock Blocks.tag("jh1236:air"))) {
@@ -194,7 +234,7 @@ private fun loadLaser() {
                 }
             },
             killMessage = """'["",{"selector": "@s","color": "gold"},{"text": " was ricocheted by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""",
-            secondary = false
+            secondary = false,
         ) {
             init {
                 setup()
@@ -218,7 +258,7 @@ private fun loadLaser() {
 private fun loadNecromancy() {
     necromancy = RaycastBuilder("Necromancy", 2500).withCooldown(2.0).addSound("block.soul_sand.place", .1)
         .addSound("particle.soul_escape")
-        .withParticle(Particles.DUST_COLOR_TRANSITION(0.0, 0.0, 0.0, 1.0, 0.431, 0.431, 0.431), 10)
+        .addParticle(Particles.DUST_COLOR_TRANSITION(0.0, 0.0, 0.0, 1.0, 0.431, 0.431, 0.431), 10)
         .onEntityHit { playerHit, playerShooting ->
             If(playerHit.hasTag(deadTag)) {
                 health[playerShooting] += 1000
@@ -236,7 +276,7 @@ private fun loadNecromancy() {
 }
 
 private fun loadRifle() {
-    rifle = RaycastBuilder("Rifle", 1200).withCooldown(0.5).withParticle(Particles.ENCHANTED_HIT)
+    rifle = RaycastBuilder("Rifle", 1200).withCooldown(0.5).addParticle(Particles.ENCHANTED_HIT)
         .addSound("minecraft:block.ancient_debris.hit", .25).addSound("minecraft:block.ancient_debris.hit", .25)
         .addSound("minecraft:block.ancient_debris.hit", .25).addSound("minecraft:block.ancient_debris.hit", .25)
         .addSound("minecraft:ui.loom.select_pattern", .75).withCustomModelData(9).withRange(300)

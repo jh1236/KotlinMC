@@ -1,8 +1,8 @@
 package gunGame.weapons
 
-import abstractions.If
 import abstractions.flow.If
 import abstractions.hasTag
+import abstractions.score.Score
 import commands.Command
 import enums.Anchor
 import enums.Items
@@ -13,7 +13,6 @@ import lib.debug.Log
 import structure.Fluorite
 import structure.McFunction
 import utils.Selector
-import utils.score.Score
 import kotlin.math.roundToInt
 
 abstract class AbstractCoasWeapon(
@@ -23,14 +22,14 @@ abstract class AbstractCoasWeapon(
     val cooldown: Double,
     val clipsize: Int = 1,
     val reload: Double = 0.0,
-    secondary: Boolean  = false,
-    isReward: Boolean  = false
+    secondary: Boolean = false,
+    isReward: Boolean = false
 ) : AbstractWeapon(name, damage, secondary, isReward) {
     companion object {
         val currentId: Score = Fluorite.getNewFakeScore("id")
 
         @JvmStatic
-        protected lateinit var coasManager: ScoreEventManager
+        lateinit var coasManager: ScoreEventManager
             private set
 
         fun setCoasFunction(coas: ScoreEventManager) {
@@ -43,7 +42,7 @@ abstract class AbstractCoasWeapon(
     val shootFunction: McFunction = McFunction(basePath)
 
     fun setup() {
-        shootFunction +=  {
+        shootFunction += {
             shoot()
         }
         coasManager += {
@@ -57,7 +56,7 @@ abstract class AbstractCoasWeapon(
 
     private fun shoot() {
         Log.debug("shot weapon with id $myId!!")
-        If (!self["nbt = {SelectedItem:{tag:{jh1236:{ready:0b}}}}"]) {
+        If(!self["nbt = {SelectedItem:{tag:{jh1236:{ready:0b}}}}"]) {
             cdBeforeShot.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
             Log.info("asdkgasd:", cdBeforeShot)
             if (clipsize != 1) {
@@ -71,20 +70,26 @@ abstract class AbstractCoasWeapon(
 
     abstract fun fire()
 
+    protected val itemNBT: String
+        get() {
+            val sb = StringBuilder("{jh1236:{ready:1b, weapon:$myId, cooldown: {value: 0, max : 0}, ")
+            if (clipsize > 1) {
+                sb.append("ammo: {value: $clipsize, max:$clipsize},")
+            }
+            sb.append("}, ")
+            if (customModelData > 0) {
+                sb.append("CustomModelData:${customModelData}, ")
+            }
+            sb.append("display:{ Name: '{\"text\":\"$name\",\"italic\" : false}'}, ")
+            sb.append("}")
+            return sb.toString()
+        }
+
     override fun give(player: Selector) {
-        val sb = StringBuilder("{jh1236:{ready:1b, weapon:$myId, cooldown: {value: 0, max : 0}, ")
-        if (clipsize > 1) {
-            sb.append("ammo: {value: $clipsize, max:$clipsize},")
-        }
-        sb.append("}, ")
-        if (customModelData > 0) {
-            sb.append("CustomModelData:${customModelData}, ")
-        }
-        sb.append("display:{ Name: '{\"text\":\"$name\",\"italic\" : false}'}, ")
-        sb.append("}")
         Command.give(
-            player, Items.CARROT_ON_A_STICK.nbt(sb.toString())
+            player, Items.CARROT_ON_A_STICK.nbt(itemNBT)
         )
     }
+
 
 }

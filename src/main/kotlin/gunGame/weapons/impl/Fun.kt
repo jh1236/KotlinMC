@@ -1,4 +1,4 @@
-package gunGame.weapons
+package gunGame.weapons.impl
 
 import abstractions.As
 import abstractions.PlayerTag
@@ -8,20 +8,21 @@ import abstractions.flow.Switch
 import abstractions.hasTag
 import abstractions.variables.NBTTypes
 import commands.Command
-import enums.Anchor
-import enums.Effects
-import enums.Entities
-import enums.Particles
+import enums.*
 import gunGame.*
-import lib.get
+import gunGame.weapons.RaycastBuilder
+import gunGame.weapons.RaycastWeapon
+import gunGame.weapons.shootTag
 import lib.random.Random
 import structure.Fluorite
 import structure.McFunction
 import utils.Vec2
+import utils.get
 import utils.loc
 import utils.rel
 
 lateinit var catGun: RaycastWeapon
+lateinit var weezer: RaycastWeapon
 lateinit var danceGun: RaycastWeapon
 val handleStreak = McFunction("jh1236:health/streak")
 
@@ -41,7 +42,7 @@ fun loadCat() {
         }
     }
 
-    catGun = RaycastBuilder("Cat Gun", 0).withParticle(Particles.ANGRY_VILLAGER)
+    catGun = RaycastBuilder("Cat Gun", 0).addParticle(Particles.ANGRY_VILLAGER)
         .addSound("minecraft:entity.cat.ambient").withCooldown(1.5).onWallHit {
             Command.summon(
                 Entities.HUSK,
@@ -69,7 +70,7 @@ fun loadDance() {
         .withPiercing()
         .withRange(100)
         .addSound("minecraft:block.beacon.power_select", 2.0)
-        .withParticle(Particles.DUST(3.0, 3.0, 3.0, 2.0), 4)
+        .addParticle(Particles.DUST(3.0, 3.0, 3.0, 2.0), 4)
         .onWallHit {
             Command.raw("""summon item ~ ~ ~ {Age:5950,PickupDelay:32767,Item:{id:"minecraft:music_disc_13",Count:1b}, Tags:[new, safe]}""")
             Command.raw("""summon item ~ ~ ~ {Age:5950,PickupDelay:32767,Item:{id:"minecraft:music_disc_mellohi",Count:1b}, Tags:[new, safe]}""")
@@ -94,6 +95,19 @@ fun loadDance() {
             Command.schedule().As(self, 4960) {
                 Command.raw("particle minecraft:entity_effect ~ ~ ~ 0.9960784313725490196078431372549 0.9921568627450980392156862745098 1 1 0 force @s")
             }
+        }.asReward().done()
+}
+
+fun loadWeezerGun() {
+    weezer = RaycastBuilder("Weezer Gun", 500).withCooldown(1.0).withCustomModelData(112)
+        .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " lost a dance-off with "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
+        .withPiercing()
+        .withRange(100)
+        .addSound("minecraft:block.beacon.power_select", 2.0)
+        .addParticle(Particles.DUST(3.0, 3.0, 3.0, 2.0), 4)
+        .onEntityHit { hit, shoot ->
+            Command.item().replace.entity(self, "armor.head")
+                .with(Items.CARVED_PUMPKIN.nbt("{Enchantments:[{id:\"curse_of_binding\"}]}"))
         }.asReward().done()
 }
 

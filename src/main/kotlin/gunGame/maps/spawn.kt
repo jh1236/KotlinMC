@@ -1,23 +1,22 @@
 package gunGame.maps
 
+import abstractions.Trigger
 import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Switch
-import abstractions.notHasTag
+import abstractions.score.Objective
 import commands.Command
 import enums.Effects
 import gunGame.*
 import gunGame.weapons.AbstractWeapon.Companion.allWeapons
-import lib.Trigger
 import lib.debug.Debug
 import lib.debug.Log
-import lib.get
 import lib.random.Random
 import structure.Fluorite
 import structure.McFunction
 import utils.Selector
 import utils.Vec2
-import utils.score.Objective
+import utils.get
 
 val weaponSelectScore = Objective("select")[self]
 val secondarySelectScore = Objective("secnd")[self]
@@ -124,7 +123,7 @@ fun spawnSetup() {
     }
 
     Fluorite.tickFile += {
-        if(!Debug.debugMode) {
+        if (!Debug.debugMode) {
             McFunction("scoreboard") {
                 val gt = Fluorite.reuseFakeScore("gametime")
                 gt.set { Command.time().query.gametime }

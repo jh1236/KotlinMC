@@ -1,6 +1,6 @@
 package gunGame
 
-import lib.Trigger
+import abstractions.Trigger
 import lib.debug.Debug
 
 fun addDebug() {

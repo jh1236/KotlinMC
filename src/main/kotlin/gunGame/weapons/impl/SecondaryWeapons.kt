@@ -1,21 +1,24 @@
-package gunGame.weapons
+package gunGame.weapons.impl
 
-import abstractions.*
+import abstractions.PlayerTag
+import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Tree
+import abstractions.hasTag
+import abstractions.notHasTag
+import abstractions.score.Score
 import commands.Command
 import enums.*
 import gunGame.*
-import gunGame.weapons.impl.stoneSword
-import gunGame.weapons.impl.tomeOfAir
-import lib.*
+import gunGame.weapons.*
+import internal.commands.impl.execute.OnTarget
+import lib.Quad
+import lib.copyHeldItemToBlockAndRun
+import lib.rangeScore
+import lib.raycast
 import structure.Fluorite
 import structure.McFunction
-import utils.Selector
-import utils.Vec2
-import utils.loc
-import utils.rel
-import utils.score.Score
+import utils.*
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -40,7 +43,7 @@ val resetMedusa = McFunction("jh1236:weapons/secondary/medusa") {
 
 private fun loadPistol() {
     pistol =
-        RaycastBuilder("Pistol", 600).withCooldown(.15).withClipSize(6).withReload(1.0).withParticle(Particles.CRIT)
+        RaycastBuilder("Pistol", 600).withCooldown(.15).withClipSize(6).withReload(1.0).addParticle(Particles.CRIT)
             .addSound("ui.loom.select_pattern", 2.0).withCustomModelData(101).withRange(50).asSecondary()
             .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was popped by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
             .done()
@@ -85,15 +88,15 @@ private fun loadTp() {
         200,
         105,
         1.0,
-        particle = Particles.FALLING_DUST(Blocks.LIGHT_BLUE_CONCRETE),
+        piercing = true,
+        particleArray = arrayListOf(Quad(Particles.FALLING_DUST(Blocks.LIGHT_BLUE_CONCRETE), 1, 0.0, 0.0)),
+        range = -1,
         onWallHit = {
             Command.tp(self, loc(0, 0, -.25))
-            Command.playsound("entity.enderman.teleport").master(self)
+            Command.playsound("entity.enderman.teleport").master(self, rel(), 2.0)
         },
-        secondary = true,
-        piercing = true,
         killMessage = """'["",{"selector": "@s","color": "gold"},{"text": " was displaced by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""",
-        range = -1
+        secondary = true,
     ) {
         private fun calcDistance(): Score {
             val distance = Fluorite.getNewFakeScore("distance")
@@ -147,10 +150,13 @@ private fun loadTp() {
 private fun loadPetrify() {
     tomeOfPetrification =
         ProjectileBuilder("Tome of Petrification", 500).withCooldown(2.0).addSound("item.hoe.till", .1)
-            .withParticle(Particles.SQUID_INK).onEntityHit { playerHit, _ ->
+            .addParticle(Particles.SQUID_INK).onEntityHit { playerHit, _ ->
                 Command.effect().give(playerHit, Effects.GLOWING, 2, 0, true)
                 Command.effect().give(playerHit, Effects.SLOWNESS, 1, 11, true)
                 Command.effect().give(playerHit, Effects.JUMP_BOOST, 1, 128, true)
+//                Command.execute().summon(Entities.BLOCK_DISPLAY).run {
+//                    Command.data().merge(self.data, "{block_}")
+//                }
                 repeat(6) {
                     Command.playsound("entity.elder_guardian.curse").master(playerHit, rel(), 1.0)
                     Command.playsound("item.trident.thunder").master(playerHit, rel(), 1.0)
@@ -195,7 +201,7 @@ private fun loadTraps() {
                 Command.playsound("minecraft:entity.zombie.attack_iron_door").master(self, rel(), 1, .7)
                 Command.playsound("minecraft:entity.zombie.attack_iron_door")
                     .master('a'["distance=.1.."], rel(), .7, .7)
-                Command.title(self).times(0, 20, 0)
+                Command.title(self).times(Duration(0), Duration(20), Duration(0))
                 Command.title(self)
                     .title("""[{"text":"You have been ", "color": "gold"}, {"text": "TRAPPED","color":"dark_red", "bold": true}]""")
                 Command.tellraw(
@@ -255,7 +261,7 @@ private fun loadAura() {
                 smokeTag.remove(self)
             }
             Fluorite.tickFile += {
-                Command.execute().asat('a'[""]).If(self hasData "{Inventory:[{tag:{jh1236:{weapon:$myId}}}]}").run {
+                Command.execute().asat('a'[""]).If(self.data["{Inventory:[{tag:{jh1236:{weapon:$myId}}}]}"]).run {
                     Command.execute().As('a'["distance = 0.1.."].hasTag(playingTag)).run { smoke(.7) }
                 }
                 Command.execute()
@@ -377,28 +383,28 @@ private fun loadInvis() {
 }
 
 private fun loadLeap() {
-
     leap =
         object : ProjectileWeapon(
             "Tome of Propulsion",
-            0, 111, 1.5,
-            projectileSpeed = 3,
-            particle = Particles.SCRAPE,
+            0, 111, 1.8,
+            projectileEntity = Entities.BEE,
+            projectileSpeed = 2,
+            particleArray = listOf(Quad(Particles.SCRAPE, 1, 0, 0)),
             secondary = true,
             onWallHit = {
                 Command.playsound("minecraft:entity.generic.extinguish_fire").master('a'[""], rel(), .6, 1.0)
                 Command.particle(Particles.TOTEM_OF_UNDYING, rel(), .2, .2, .2, 1.0, 100)
-                Command.effect().clear('a'[""].hasTag(shootTag), Effects.LEVITATION)
+                Command.ride('a'["limit = 1"].hasTag(shootTag)).dismount
             },
             onProjectileTick = {
-                Command.tp('a'[""].hasTag(shootTag), rel())
-                Command.execute().rotated.As('a'[""].hasTag(shootTag)).run.tp(self, rel(), Vec2("~", "~"))
-                Command.effect().give('a'[""].hasTag(shootTag), Effects.LEVITATION, 1000, 255, true)
-                Command.execute().unless('a'["nbt = {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}"].hasTag(shootTag))
-                    .run {
-                        this.onWallHit!!('a'[""].hasTag(shootTag))
-                        Command.kill()
-                    }
+                Command.execute().rotated('a'[""].hasTag(shootTag)).run.tp(self, rel(), Vec2("~", "~"))
+                val passengerCount = Fluorite.reuseFakeScore("passengerCount", 0)
+                Command.execute().on(OnTarget.PASSENGERS).run {
+                    passengerCount.set(1)
+                }
+                If(passengerCount eq 0) {
+                    health[self] = 0
+                }
             }
         ) {
             private fun calcDistance(): Score {
@@ -408,7 +414,7 @@ private fun loadLeap() {
 
                 If(self["tag = noCooldown"]) { cdBeforeShot.set(0) }
                 distance -= cdBeforeShot
-                distance.minOf(75)
+                distance.minOf(100)
                 distance *= 3
                 distance /= 5
                 distance.maxOf(4)
@@ -437,6 +443,8 @@ private fun loadLeap() {
                 rangeScore.set(calcDistance())
                 Command.kill('e'[""].hasTag(projectile))
                 super.fire()
+                Command.ride(self).dismount
+                Command.ride(self).mount('e'["limit=1"].hasTag(projectile))
                 copyHeldItemToBlockAndRun {
                     it[""] = "{ Count:1 }"
                 }
@@ -452,14 +460,15 @@ private fun loadTome() {
         Command.playsound("minecraft:item.firecharge.use").master('a'[""], rel(), 1.0)
     }
     tomeOfAir =
-        ProjectileBuilder("Tome of Fire", 3000).withCooldown(4.0).withParticle(Particles.FLAME, 10).withProjectile(1, 1)
+        ProjectileBuilder("Tome of Fire", 3000).withCooldown(4.0)
+            .addParticle(Particles.DUST(.7, 0.1, 0.1, 2.0), 10, .2, .1)
+            .addParticle(Particles.FLAME, 10, .2)
+            .withProjectile(1, 1)
             .withRange(50).withCustomModelData(7).addSound("minecraft:entity.tnt.primed", 1.3).onWallHit {
                 tomeHitsWall()
             }.onEntityHit { _, _ ->
                 tomeHitsWall()
             }.onProjectileTick {
-                Command.particle(Particles.DUST(1.0, 0.0, 0.0, 2.0), rel(), .2, .2, .2, 1, 10)
-                Command.particle(Particles.FLAME, rel(), .2, .2, .2, .1, 10)
                 Command.execute().lerpFacing('p'[""].notHasTag(shootTag).hasTag(playingTag), 1, 7).run.tp(
                     self, rel(), Vec2("~", "~")
                 )

@@ -1,22 +1,20 @@
 package gunGame.weapons
 
-import abstractions.*
+import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Tree
+import abstractions.hasTag
+import abstractions.notHasTag
+import abstractions.score.Objective
+import abstractions.score.Score
 import commands.Command
-import enums.Blocks
 import enums.IParticle
-import gunGame.damageSelf
-import gunGame.ifPlaying
-import gunGame.playingTag
-import gunGame.self
-import lib.get
+import gunGame.*
+import lib.Quad
 import lib.rangeScore
 import lib.raycastEntity
 import structure.McFunction
 import utils.*
-import utils.score.Objective
-import utils.score.Score
 import kotlin.math.round
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -29,18 +27,19 @@ open class RaycastWeapon(
     clipSize: Int = 1,
     reloadTime: Double = 0.0,
     private var piercing: Boolean = false,
-    protected var particleCount: Int = 1,
+    val particleArray: ArrayList<Quad<IParticle, Int, Double, Double>> = arrayListOf(),
     private var sound: List<Pair<String, Double>> = arrayListOf(),
-    private var particle: IParticle? = null,
     private var bulletsPerShot: Int = 1,
     private var range: Int = -1,
     private var spread: Double = 0.0,
-    private var onWallHit: ((Selector) -> Unit)? = null,
-    private var onEntityHit: (RaycastWeapon.(Selector, Selector) -> Unit)? = null,
+    protected var onWallHit: ((Selector) -> Unit)? = null,
+    protected var onEntityHit: (RaycastWeapon.(Selector, Selector) -> Unit)? = null,
     private var splashRange: Double = 0.0,
-    private var killMessage: String = """'["",{"selector":"@s", "color":"gold"}, " was killed by ", {"selector":"@a[tag = $shootTag]"}]'""",
+    protected var onFireBullet: (() -> Unit)? = null,
+    protected var onRaycastTick: (() -> Unit)? = null,
+    protected var killMessage: String = """'["",{"selector":"@s", "color":"gold"}, " was killed by ", {"selector":"@a[tag = $shootTag]"}]'""",
     secondary: Boolean = false,
-    isReward: Boolean = false
+    isReward: Boolean = false,
 ) : AbstractCoasWeapon(name, damage, customModelData, cooldown, clipSize, reloadTime, secondary, isReward) {
 
     companion object {
@@ -84,14 +83,32 @@ open class RaycastWeapon(
     }
 
     private fun rayCast() {
-        Command.data().merge.storage("jh1236:message", "{death: $killMessage}")
+        deathStorage["death"] = killMessage
+        onFireBullet?.let { it() }
         raycastEntity(.25f, {
-            particle?.let { particle ->
-                Command.particle(particle, rel(),0, 0, 0,0.0, particleCount).force(
+            onRaycastTick?.let { it1 -> it1() }
+            particleArray.forEach { (particle, count, radius, speed) ->
+                Command.particle(particle, rel(), radius, radius, radius, speed, count).force(
                     if (cooldown > .05) 'a'[""] else 'a'[""].notHasTag(
                         shootTag
                     )
                 )
+                Command.particle(particle, loc(0, 0, -.0625), radius, radius, radius, speed, count).force(
+                    (if (cooldown > .05) 'a'[""] else 'a'[""].notHasTag(
+                        shootTag
+                    )).notHasTag(lagTag)
+                )
+                Command.particle(particle, loc(0, 0, -.125), radius, radius, radius, speed, count).force(
+                    (if (cooldown > .05) 'a'[""] else 'a'[""].notHasTag(
+                        shootTag
+                    )).notHasTag(lagTag)
+                )
+                Command.particle(particle, loc(0, 0, -.1875), radius, radius, radius, speed, count).force(
+                    (if (cooldown > .05) 'a'[""] else 'a'[""].notHasTag(
+                        shootTag
+                    )).notHasTag(lagTag)
+                )
+
             }
         }, {
             Command.execute().ifPlaying(self.notHasTag(shootTag).notHasTag(safeTag)).run {
@@ -109,12 +126,12 @@ open class RaycastWeapon(
                 }
             }
         }, range, onWallHit = {
+            Command.raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a")
             onWallHit?.let { it(self) }
             if (splashRange > 0) {
                 splash()
             }
-        }
-        )
+        })
         safeTag.remove('e'[""])
     }
 

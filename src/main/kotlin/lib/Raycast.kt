@@ -2,17 +2,13 @@ package lib
 
 import abstractions.flow.Do
 import abstractions.flow.If
-import abstractions.unless
+import abstractions.score.Score
 import commands.Command
-import enums.Blocks
-import enums.Entities
 import gunGame.asIntersects
 import lib.debug.Log
 import structure.Fluorite
 import utils.Selector
 import utils.loc
-import utils.rel
-import utils.score.Score
 
 val rangeScore = Fluorite.getNewFakeScore("count")
 
@@ -30,7 +26,6 @@ fun raycast(change: Float, forEach: (Score) -> Unit = {}, onHit: () -> Unit = {}
             If(a eq 1) {
                 rangeScore.set(0)
                 onHit()
-                Command.raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a")
             }
             rangeScore -= 1
         }.moved(loc(0, 0, change)).While(rangeScore gte 0)
@@ -58,7 +53,6 @@ fun raycastEntity(
                 If(doesCollide() eq 1) {
                     rangeScore.set(0)
                     onWallHit?.let { it() }
-                    raw("particle dust_color_transition 0.361 0.361 0.361 1 0.871 0.871 0.871 ~ ~ ~ 0 0 0 0 5 normal @a")
                 }
                 execute().asIntersects(Selector('e')).run(onHit)
                 rangeScore -= 1

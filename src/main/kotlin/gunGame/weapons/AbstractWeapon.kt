@@ -3,6 +3,8 @@ package gunGame.weapons
 import abstractions.PlayerTag
 import utils.Selector
 
+val secondSkinTag = PlayerTag("custom")
+
 abstract class AbstractWeapon(val name: String, val damage: Int, var secondary: Boolean = false, var isReward: Boolean = false) {
     companion object {
         private val listOfWeapons = arrayListOf<AbstractWeapon>()
@@ -38,5 +40,5 @@ abstract class AbstractWeapon(val name: String, val damage: Int, var secondary: 
     val myId: Int = ++id
 
 
-    abstract fun give(player: Selector);
+    abstract fun give(player: Selector)
 }

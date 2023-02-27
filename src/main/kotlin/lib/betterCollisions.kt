@@ -4,30 +4,101 @@ import abstractions.PlayerTag
 import abstractions.ReturningMethod
 import abstractions.flow.If
 import abstractions.hasTag
+import abstractions.score.Score
 import commands.Command
 import enums.Blocks
 import enums.Entities
 import enums.nbt
 import structure.Fluorite
+import utils.get
 import utils.rel
 
-val panes = Blocks.newTag(Blocks.GLASS_PANE, Blocks.WHITE_STAINED_GLASS_PANE, Blocks.RED_STAINED_GLASS_PANE, Blocks.ORANGE_STAINED_GLASS_PANE, Blocks.PINK_STAINED_GLASS_PANE, Blocks.YELLOW_STAINED_GLASS_PANE, Blocks.LIME_STAINED_GLASS_PANE, Blocks.GREEN_STAINED_GLASS_PANE, Blocks.LIGHT_BLUE_STAINED_GLASS_PANE, Blocks.CYAN_STAINED_GLASS_PANE, Blocks.MAGENTA_STAINED_GLASS_PANE, Blocks.PURPLE_STAINED_GLASS_PANE, Blocks.PURPLE_STAINED_GLASS_PANE, Blocks.BROWN_STAINED_GLASS_PANE, Blocks.GRAY_STAINED_GLASS_PANE, Blocks.BLACK_STAINED_GLASS_PANE, Blocks.IRON_BARS)
-val rods = Blocks.newTag(Blocks.END_ROD,Blocks.LIGHTNING_ROD)
-val skulls = Blocks.newTag(Blocks.DRAGON_HEAD, Blocks.SKELETON_SKULL, Blocks.WITHER_SKELETON_SKULL, Blocks.PLAYER_HEAD, Blocks.ZOMBIE_HEAD, Blocks.CREEPER_HEAD)
-val wall_skulls = Blocks.newTag(Blocks.DRAGON_WALL_HEAD,Blocks.SKELETON_WALL_SKULL, Blocks.WITHER_SKELETON_WALL_SKULL, Blocks.PLAYER_WALL_HEAD, Blocks.ZOMBIE_WALL_HEAD, Blocks.CREEPER_WALL_HEAD)
+val panes = Blocks.newTag(
+    Blocks.GLASS_PANE,
+    Blocks.WHITE_STAINED_GLASS_PANE,
+    Blocks.RED_STAINED_GLASS_PANE,
+    Blocks.ORANGE_STAINED_GLASS_PANE,
+    Blocks.PINK_STAINED_GLASS_PANE,
+    Blocks.YELLOW_STAINED_GLASS_PANE,
+    Blocks.LIME_STAINED_GLASS_PANE,
+    Blocks.GREEN_STAINED_GLASS_PANE,
+    Blocks.LIGHT_BLUE_STAINED_GLASS_PANE,
+    Blocks.CYAN_STAINED_GLASS_PANE,
+    Blocks.MAGENTA_STAINED_GLASS_PANE,
+    Blocks.PURPLE_STAINED_GLASS_PANE,
+    Blocks.PURPLE_STAINED_GLASS_PANE,
+    Blocks.BROWN_STAINED_GLASS_PANE,
+    Blocks.GRAY_STAINED_GLASS_PANE,
+    Blocks.BLACK_STAINED_GLASS_PANE,
+    Blocks.IRON_BARS
+)
+val rods = Blocks.newTag(Blocks.END_ROD, Blocks.LIGHTNING_ROD)
+val skulls = Blocks.newTag(
+    Blocks.DRAGON_HEAD,
+    Blocks.SKELETON_SKULL,
+    Blocks.WITHER_SKELETON_SKULL,
+    Blocks.PLAYER_HEAD,
+    Blocks.ZOMBIE_HEAD,
+    Blocks.CREEPER_HEAD
+)
+val wall_skulls = Blocks.newTag(
+    Blocks.DRAGON_WALL_HEAD,
+    Blocks.SKELETON_WALL_SKULL,
+    Blocks.WITHER_SKELETON_WALL_SKULL,
+    Blocks.PLAYER_WALL_HEAD,
+    Blocks.ZOMBIE_WALL_HEAD,
+    Blocks.CREEPER_WALL_HEAD
+)
 val lanterns = Blocks.newTag(Blocks.LANTERN, Blocks.SOUL_LANTERN)
 val pistons = Blocks.newTag(Blocks.STICKY_PISTON, Blocks.PISTON)
-val split1 = Blocks.newTag( Blocks.SCULK_SENSOR, Blocks.END_PORTAL_FRAME, Blocks.ENCHANTING_TABLE, Blocks.STONECUTTER, Blocks.DAYLIGHT_DETECTOR, Blocks.SCULK_SHRIEKER, Blocks.tag("minecraft:beds"), Blocks.tag("minecraft:campfires"), Blocks.CAKE, Blocks.CANDLE_CAKE)
-val split2 = Blocks.newTag(rods, panes, Blocks.PISTON_HEAD, Blocks.tag("minecraft:fences"), Blocks.tag("minecraft:fence_gates"), Blocks.CHAIN, lanterns, pistons)
-val split3 = Blocks.newTag(Blocks.BELL, Blocks.tag("minecraft:walls"), Blocks.HOPPER, Blocks.LECTERN, Blocks.CONDUIT, Blocks.tag("minecraft:anvil"),skulls, wall_skulls)
-val all_partials = Blocks.newTag(split2, split3, split1, Blocks.tag("minecraft:stairs"), Blocks.tag("minecraft:doors"), Blocks.tag("minecraft:slabs"), Blocks.tag("minecraft:trapdoors"), )
+val split1 = Blocks.newTag(
+    Blocks.SCULK_SENSOR,
+    Blocks.END_PORTAL_FRAME,
+    Blocks.ENCHANTING_TABLE,
+    Blocks.STONECUTTER,
+    Blocks.DAYLIGHT_DETECTOR,
+    Blocks.SCULK_SHRIEKER,
+    Blocks.tag("minecraft:beds"),
+    Blocks.tag("minecraft:campfires"),
+    Blocks.CAKE,
+    Blocks.CANDLE_CAKE
+)
+val split2 = Blocks.newTag(
+    rods,
+    panes,
+    Blocks.PISTON_HEAD,
+    Blocks.tag("minecraft:fences"),
+    Blocks.tag("minecraft:fence_gates"),
+    Blocks.CHAIN,
+    lanterns,
+    pistons
+)
+val split3 = Blocks.newTag(
+    Blocks.BELL,
+    Blocks.tag("minecraft:walls"),
+    Blocks.HOPPER,
+    Blocks.LECTERN,
+    Blocks.CONDUIT,
+    Blocks.tag("minecraft:anvil"),
+    skulls,
+    wall_skulls
+)
+val all_partials = Blocks.newTag(
+    split2,
+    split3,
+    split1,
+    Blocks.tag("minecraft:stairs"),
+    Blocks.tag("minecraft:doors"),
+    Blocks.tag("minecraft:slabs"),
+    Blocks.tag("minecraft:trapdoors"),
+)
 
 val tag = PlayerTag("coordinate_fetch")
 val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
 
     // returns 1 if collides. 0 otherwise
     val retScore = Fluorite.reuseFakeScore("collides", 0) // change value to 0
-    If(!(rel() isBlock Blocks.tag("jh1236:air"))){
+    If(!(rel() isBlock Blocks.tag("jh1236:air"))) {
 //        Command.say("true")
         retScore.set(1)
     }
@@ -241,59 +312,59 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
             }
 
         }
-        If(rel() isBlock split1){
+        If(rel() isBlock split1) {
             If(rel() isBlock Blocks.STONECUTTER) {
                 If(y lte 62) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.DAYLIGHT_DETECTOR){
-                If(y lte 37){
+            If(rel() isBlock Blocks.DAYLIGHT_DETECTOR) {
+                If(y lte 37) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.SCULK_SENSOR){
-                If(y lte 50){
+            If(rel() isBlock Blocks.SCULK_SENSOR) {
+                If(y lte 50) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.SCULK_SHRIEKER){
-                If(y lte 50){
+            If(rel() isBlock Blocks.SCULK_SHRIEKER) {
+                If(y lte 50) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.tag("minecraft:beds")){
-                If(y lte 56){
+            If(rel() isBlock Blocks.tag("minecraft:beds")) {
+                If(y lte 56) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.tag("minecraft:campfires")){
-                If(y lte 43){
+            If(rel() isBlock Blocks.tag("minecraft:campfires")) {
+                If(y lte 43) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.CAKE){
-                If(y lte 50){
+            If(rel() isBlock Blocks.CAKE) {
+                If(y lte 50) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.CANDLE_CAKE){
-                If(y lte 50){
+            If(rel() isBlock Blocks.CANDLE_CAKE) {
+                If(y lte 50) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.END_PORTAL_FRAME){
-                If(y lte 81){
+            If(rel() isBlock Blocks.END_PORTAL_FRAME) {
+                If(y lte 81) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.ENCHANTING_TABLE){
-                If(y lte 75){
+            If(rel() isBlock Blocks.ENCHANTING_TABLE) {
+                If(y lte 75) {
                     retScore.set(1)
                 }
             }
         }
-        If(rel() isBlock split2){
+        If(rel() isBlock split2) {
             If(rel() isBlock rods) {
                 val centre = (50 - 13)..(50 + 13)
                 for (i in listOf("up", "down")) {
@@ -354,43 +425,43 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
                 }
 
             }
-            If(rel() isBlock pistons){
-                If(rel() isBlock pistons.nbt("[extended=false]")){
+            If(rel() isBlock pistons) {
+                If(rel() isBlock pistons.nbt("[extended=false]")) {
                     retScore.set(1)
                 }
-                If(rel() isBlock pistons.nbt("[facing=up]")){
-                    If(y lte 75){
+                If(rel() isBlock pistons.nbt("[facing=up]")) {
+                    If(y lte 75) {
                         retScore.set(1)
                     }
                 }
-                If(rel() isBlock pistons.nbt("[facing=down]")){
-                    If(y gte 25){
+                If(rel() isBlock pistons.nbt("[facing=down]")) {
+                    If(y gte 25) {
                         retScore.set(1)
                     }
                 }
-                If(rel() isBlock pistons.nbt("[facing=south]")){
-                    If(z lte 75){
+                If(rel() isBlock pistons.nbt("[facing=south]")) {
+                    If(z lte 75) {
                         retScore.set(1)
                     }
                 }
-                If(rel() isBlock pistons.nbt("[facing=north]")){
-                    If(z gte 25){
+                If(rel() isBlock pistons.nbt("[facing=north]")) {
+                    If(z gte 25) {
                         retScore.set(1)
                     }
                 }
-                If(rel() isBlock pistons.nbt("[facing=east]")){
-                    If(x lte 75){
+                If(rel() isBlock pistons.nbt("[facing=east]")) {
+                    If(x lte 75) {
                         retScore.set(1)
                     }
                 }
-                If(rel() isBlock pistons.nbt("[facing=west]")){
-                    If(x gte 25){
+                If(rel() isBlock pistons.nbt("[facing=west]")) {
+                    If(x gte 25) {
                         retScore.set(1)
                     }
                 }
 
             }
-            If(rel() isBlock Blocks.PISTON_HEAD){
+            If(rel() isBlock Blocks.PISTON_HEAD) {
                 val centre = (50 - 13)..(50 + 13)
                 If(rel() isBlock Blocks.PISTON_HEAD.nbt("[facing=down]")) {
                     If(x inRange centre and (z inRange centre)) {
@@ -404,7 +475,7 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
                     If(x inRange centre and (z inRange centre)) {
                         retScore.set(1)
                     }
-                    If (y gte 75){
+                    If(y gte 75) {
                         retScore.set(1)
                     }
                 }
@@ -412,7 +483,7 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
                     If(x inRange centre and (y inRange centre)) {
                         retScore.set(1)
                     }
-                    If (z lte 25){
+                    If(z lte 25) {
                         retScore.set(1)
                     }
                 }
@@ -420,7 +491,7 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
                     If(x inRange centre and (y inRange centre)) {
                         retScore.set(1)
                     }
-                    If (z gte 75){
+                    If(z gte 75) {
                         retScore.set(1)
                     }
                 }
@@ -428,7 +499,7 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
                     If(z inRange centre and (y inRange centre)) {
                         retScore.set(1)
                     }
-                    If (x gte 75){
+                    If(x gte 75) {
                         retScore.set(1)
                     }
                 }
@@ -436,7 +507,7 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
                     If(z inRange centre and (y inRange centre)) {
                         retScore.set(1)
                     }
-                    If (x lte 25){
+                    If(x lte 25) {
                         retScore.set(1)
                     }
                 }
@@ -469,49 +540,49 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
                 }
 
             }
-            If(rel() isBlock lanterns){
-                If(rel() isBlock lanterns.nbt("[hanging=false]")){
-                    If(x inRange 32..68 and (z inRange 32..68) and (y lte 56)){
+            If(rel() isBlock lanterns) {
+                If(rel() isBlock lanterns.nbt("[hanging=false]")) {
+                    If(x inRange 32..68 and (z inRange 32..68) and (y lte 56)) {
                         retScore.set(1)
                     }
                 }
-                If (rel() isBlock lanterns.nbt("[hanging=true]")) {
-                    If(x inRange 32..68 and (z inRange 32..68) and (y inRange 7..63)){
+                If(rel() isBlock lanterns.nbt("[hanging=true]")) {
+                    If(x inRange 32..68 and (z inRange 32..68) and (y inRange 7..63)) {
                         retScore.set(1)
                     }
-                    If(x inRange 37..63 and (z inRange 37..63) and (y gte 63)){
+                    If(x inRange 37..63 and (z inRange 37..63) and (y gte 63)) {
                         retScore.set(1)
                     }
                 }
             }
         }
-        If(rel() isBlock split3){
-            If(rel() isBlock Blocks.LECTERN){
-                If(y lte 20){
+        If(rel() isBlock split3) {
+            If(rel() isBlock Blocks.LECTERN) {
+                If(y lte 20) {
                     retScore.set(1)
                 }
-                If(y gte 63){
-                    retScore.set(1)
-                }
-                If(x inRange 25..75){
-                    If(z inRange 25..75){
-                        retScore.set(1)
-                    }
-                }
-            }
-            If(rel() isBlock Blocks.HOPPER){
-                If(y gte 63){
+                If(y gte 63) {
                     retScore.set(1)
                 }
                 If(x inRange 25..75) {
                     If(z inRange 25..75) {
-                        If(y gte 25){
+                        retScore.set(1)
+                    }
+                }
+            }
+            If(rel() isBlock Blocks.HOPPER) {
+                If(y gte 63) {
+                    retScore.set(1)
+                }
+                If(x inRange 25..75) {
+                    If(z inRange 25..75) {
+                        If(y gte 25) {
                             retScore.set(1)
                         }
                     }
                 }
                 If(rel() isBlock Blocks.HOPPER.nbt("[facing=down]")) {
-                    If(x inRange 37..63 and (z inRange 37..63)){
+                    If(x inRange 37..63 and (z inRange 37..63)) {
                         retScore.set(1)
                     }
 
@@ -542,77 +613,80 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
                     }
                 }
             }
-            If(rel() isBlock Blocks.BELL){
-                If(y inRange 32..87){
-                    If (x inRange 32..68 and (z inRange 32..68)){
+            If(rel() isBlock Blocks.BELL) {
+                If(y inRange 32..87) {
+                    If(x inRange 32..68 and (z inRange 32..68)) {
                         retScore.set(1)
                         Command.playsound("block.bell.use")
                             .player('a'[""], rel(), 2)
                     }
                 }
-                If(rel() isBlock Blocks.BELL.nbt("[attachment=floor]")){
-                    If(rel() isBlock Blocks.BELL.nbt("[facing=north]")){
-                        If(!(x inRange 22..78)){
-                            If(z inRange 37..63){
-                                retScore.set(1)
-                            }
-                        }
-                    }
-                    If(rel() isBlock Blocks.BELL.nbt("[facing=south]")){
+                If(rel() isBlock Blocks.BELL.nbt("[attachment=floor]")) {
+                    If(rel() isBlock Blocks.BELL.nbt("[facing=north]")) {
                         If(!(x inRange 22..78)) {
                             If(z inRange 37..63) {
                                 retScore.set(1)
                             }
                         }
                     }
-                    If(rel() isBlock Blocks.BELL.nbt("[facing=east]")){
-                        If(!(z inRange 22..78)){
-                            If(x inRange 37..63){
+                    If(rel() isBlock Blocks.BELL.nbt("[facing=south]")) {
+                        If(!(x inRange 22..78)) {
+                            If(z inRange 37..63) {
                                 retScore.set(1)
                             }
                         }
                     }
-                    If(rel() isBlock Blocks.BELL.nbt("[facing=west]")){
-                        If(!(z inRange 22..78)){
-                            If(x inRange 37..63){
+                    If(rel() isBlock Blocks.BELL.nbt("[facing=east]")) {
+                        If(!(z inRange 22..78)) {
+                            If(x inRange 37..63) {
+                                retScore.set(1)
+                            }
+                        }
+                    }
+                    If(rel() isBlock Blocks.BELL.nbt("[facing=west]")) {
+                        If(!(z inRange 22..78)) {
+                            If(x inRange 37..63) {
                                 retScore.set(1)
                             }
                         }
                     }
                 }
             }
-            If(rel() isBlock Blocks.CONDUIT){
-                val n =32.. 68
-                If(x inRange n and (y inRange n) and (z inRange n)){
+            If(rel() isBlock Blocks.CONDUIT) {
+                val n = 32..68
+                If(x inRange n and (y inRange n) and (z inRange n)) {
                     retScore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.tag("minecraft:anvil")){
-                If(x inRange 13..87 and (z inRange 13..87) and (y lte 25)){
+            If(rel() isBlock Blocks.tag("minecraft:anvil")) {
+                If(x inRange 13..87 and (z inRange 13..87) and (y lte 25)) {
                     retScore.set(1)
                 }
-                for (i in listOf("north", "south")){
-                    If(rel() isBlock Blocks.tag("minecraft:anvil[facing=$i]")){
-                        If (y gte 82){
-                            If (x inRange 30..70){
+                for (i in listOf("north", "south")) {
+                    If(rel() isBlock Blocks.tag("minecraft:anvil[facing=$i]")) {
+                        If(y gte 82) {
+                            If(x inRange 30..70) {
                                 retScore.set(1)
                             }
                         }
-                        If(x inRange 37..63){
-                            If (z inRange 25..75){
-                                retScore.set(1)}
-                        }
-                    }}
-                for (i in listOf("east", "west")){
-                    If(rel() isBlock Blocks.tag("minecraft:anvil[facing=$i]")){
-                        If (y gte 82){
-                            If (z inRange 30..70){
+                        If(x inRange 37..63) {
+                            If(z inRange 25..75) {
                                 retScore.set(1)
                             }
                         }
-                        If(z inRange 37..63){
-                            If (x inRange 25..75){
-                                retScore.set(1)}
+                    }
+                }
+                for (i in listOf("east", "west")) {
+                    If(rel() isBlock Blocks.tag("minecraft:anvil[facing=$i]")) {
+                        If(y gte 82) {
+                            If(z inRange 30..70) {
+                                retScore.set(1)
+                            }
+                        }
+                        If(z inRange 37..63) {
+                            If(x inRange 25..75) {
+                                retScore.set(1)
+                            }
                         }
 
                     }
@@ -686,55 +760,55 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
     retScore
 }
 
-fun fencegateHelper(ylimits: IntRange = 19..75, retscore: utils.score.Score, x:utils.score.Score, y:utils.score.Score, z:utils.score.Score) {
+fun fencegateHelper(ylimits: IntRange = 19..75, retscore: Score, x: Score, y: Score, z: Score) {
     If(y inRange ylimits) {
-        If(rel() isBlock Blocks.tag("minecraft:fence_gates[open=false]")){
-            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=east]")){
-                If(x inRange 43..57){
+        If(rel() isBlock Blocks.tag("minecraft:fence_gates[open=false]")) {
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=east]")) {
+                If(x inRange 43..57) {
                     retscore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=west]")){
-                If(x inRange 43..57){
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=west]")) {
+                If(x inRange 43..57) {
                     retscore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=north]")){
-                If(z inRange 43..57){
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=north]")) {
+                If(z inRange 43..57) {
                     retscore.set(1)
                 }
             }
-            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=south]")){
-                If(z inRange 43..57){
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=south]")) {
+                If(z inRange 43..57) {
                     retscore.set(1)
                 }
             }
         }
-        If(rel() isBlock Blocks.tag("minecraft:fence_gates[open=true]")){
-            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=east]"))  {
-                If(!(z inRange 25..75)){
-                    If(x inRange 43..95){
+        If(rel() isBlock Blocks.tag("minecraft:fence_gates[open=true]")) {
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=east]")) {
+                If(!(z inRange 25..75)) {
+                    If(x inRange 43..95) {
                         retscore.set(1)
                     }
                 }
             }
-            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=west]")){
-                If(!(z inRange 25..75)){
-                    If(x inRange 5..57){
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=west]")) {
+                If(!(z inRange 25..75)) {
+                    If(x inRange 5..57) {
                         retscore.set(1)
                     }
                 }
             }
-            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=north]")){
-                If(!(x inRange 25..75)){
-                    If(z inRange 5..57){
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=north]")) {
+                If(!(x inRange 25..75)) {
+                    If(z inRange 5..57) {
                         retscore.set(1)
                     }
                 }
             }
-            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=south]")){
-                If(!(x inRange 25..75)){
-                    If(z inRange 43..95){
+            If(rel() isBlock Blocks.tag("minecraft:fence_gates[facing=south]")) {
+                If(!(x inRange 25..75)) {
+                    If(z inRange 43..95) {
                         retscore.set(1)
                     }
 

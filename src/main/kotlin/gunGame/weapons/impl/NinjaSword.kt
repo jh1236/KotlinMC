@@ -1,27 +1,33 @@
 package gunGame.weapons.impl
 
-import abstractions.*
+import abstractions.As
+import abstractions.PlayerTag
 import abstractions.advancements.Advancement
 import abstractions.advancements.EntityHurtPlayer
+import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Tree
+import abstractions.hasTag
+import abstractions.score.Criteria
+import abstractions.score.Objective
 import commands.Command
-import enums.*
+import enums.Anchor
+import enums.Blocks
+import enums.Entities
+import enums.Items
 import gunGame.damageSelf
 import gunGame.deadTag
 import gunGame.playingTag
 import gunGame.self
 import gunGame.weapons.AbstractWeapon
 import gunGame.weapons.shootTag
-import lib.get
 import lib.random.Random
 import structure.Fluorite
 import structure.McFunction
-import utils.Criteria
 import utils.Selector
 import utils.Vec2
+import utils.get
 import utils.loc
-import utils.score.Objective
 
 val ninjaScore = Objective("useIronSword", Criteria.useItem(Items.IRON_SWORD))
 val traceScore = Objective("trace")
@@ -36,7 +42,7 @@ val tryTp = McFunction("ninja_sword/try_tp") {
         Command.execute().anchored(Anchor.EYES).facing(
             'a'["sort = nearest", "limit=1", "distance = 0.1..4"].hasTag(playingTag),
             Anchor.FEET
-        ).positioned.As('a'["sort = nearest", "limit=1","distance = 0.1..4"].hasTag(playingTag)).rotated(
+        ).positioned('a'["sort = nearest", "limit=1", "distance = 0.1..4"].hasTag(playingTag)).rotated(
             Vec2("~${parity(it) * ((it / 2) * 30 - 150)}", "0")
         ).run {
             Command.function("jh1236:ninja_sword/tp")
@@ -69,6 +75,7 @@ fun loadNinjaSword() {
         override fun give(player: Selector) {
             Command.give(self, Items.IRON_SWORD.nbt("{jh1236:{weapon:$myId}}"))
         }
+
     }
 
     val hitFunc = McFunction("ninja_sword/hit") {
@@ -81,6 +88,7 @@ fun loadNinjaSword() {
                 tryTp()
                 shootTag.remove(self)
             }
+            stabbed.remove(self)
         }
         Command.advancement().revoke(self).only("jh1236:ninja_hit")
     }
@@ -117,6 +125,7 @@ fun stoneSword() {
         override fun give(player: Selector) {
             Command.give(self, Items.STONE_SWORD.nbt("{jh1236:{weapon:$myId}}"))
         }
+
     }
     val swordHitFunc = McFunction("sword/hit") {
         Command.schedule().As(self, 1) {

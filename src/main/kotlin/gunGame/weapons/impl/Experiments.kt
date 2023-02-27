@@ -1,31 +1,34 @@
 package gunGame.weapons.impl
 
-import abstractions.*
+import abstractions.PlayerTag
+import abstractions.advancements.Advancement
+import abstractions.advancements.PlayerInteractedWithEntity
+import abstractions.asat
 import abstractions.flow.If
+import abstractions.hasTag
+import abstractions.notHasTag
+import abstractions.score.Objective
+import abstractions.score.ScoreConstant
 import commands.Command
+import enums.Entities
 import enums.Items
 import enums.Particles
-import gunGame.bigExplosion
-import gunGame.health
-import gunGame.playingTag
-import gunGame.self
+import gunGame.*
 import gunGame.weapons.*
 import lib.debug.Log
-import lib.get
-import lib.idScore
 import structure.Fluorite
 import structure.McFunction
+import utils.get
 import utils.rel
-import utils.score.Objective
-import utils.score.ScoreConstant
 
 lateinit var clipOfDexterity: AbstractCoasWeapon
 lateinit var mines: ProjectileWeapon
-lateinit var portalGun: ProjectileWeapon
+lateinit var spinGun: RaycastWeapon
 
 val speedyAmmo = PlayerTag("speed_ammo")
 
 val shotCount = Objective("shotsRemaining")
+val spinsCount = Objective("spinsRemaining")
 
 
 fun loadClip() {
@@ -64,30 +67,30 @@ fun loadLandMines() {
     fun projectileTick(range: Int, activationDelay: Int, id: Int) {
         with(Command) {
             If(health[self] gt range - activationDelay) {
-                particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(),0, 0, 0,1.0, 5)
+                particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(), 0, 0, 0, 1.0, 5)
             }.ElseIf(health[self] gte 100) {
                 If(health[self].rem(40) eq 0) {
-                    particle(Particles.DUST(1.0, 0.0, 0.0, 1.0), rel(0, 0.2, 0),0, 0, 0,1.0, 5)
+                    particle(Particles.DUST(1.0, 0.0, 0.0, 1.0), rel(0, 0.2, 0), 0, 0, 0, 1.0, 5)
                     playsound("minecraft:block.note_block.bit").master('a'[""], rel(), .1, 1.0)
                 }.Else {
-                    particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(),0, 0, 0,1.0, 5)
+                    particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(), 0, 0, 0, 1.0, 5)
                 }
             }.ElseIf(health[self] gte 40) {
                 If(health[self].rem(10) eq 0) {
-                    particle(Particles.DUST(1.0, 0.0, 0.0, 1.0), rel(0, 0.2, 0),0, 0, 0,1.0, 5)
+                    particle(Particles.DUST(1.0, 0.0, 0.0, 1.0), rel(0, 0.2, 0), 0, 0, 0, 1.0, 5)
                     playsound("minecraft:block.note_block.bit").master('a'[""], rel(), .3, 1.0)
                 }.Else {
-                    particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(),0, 0, 0,1.0, 5)
+                    particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(), 0, 0, 0, 1.0, 5)
                 }
             }.ElseIf(health[self] gte 20) {
                 If(health[self].rem(5) eq 0) {
-                    particle(Particles.DUST(1.0, 0.0, 0.0, 1.0), rel(0, 0.2, 0),0, 0, 0,1.0, 5)
+                    particle(Particles.DUST(1.0, 0.0, 0.0, 1.0), rel(0, 0.2, 0), 0, 0, 0, 1.0, 5)
                     playsound("minecraft:block.note_block.bit").master('a'[""], rel(), 1.0, 2.0)
                 }.Else {
-                    particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(),0, 0, 0,1.0, 5)
+                    particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(), 0, 0, 0, 1.0, 5)
                 }
             }.Else {
-                particle(Particles.DUST(1.0, 0.0, 0.0, 2.0), rel(),0, 0, 0,1.0, 5)
+                particle(Particles.DUST(1.0, 0.0, 0.0, 2.0), rel(), 0, 0, 0, 1.0, 5)
                 playsound("minecraft:block.note_block.bit").master('a'[""], rel(), 1.0, 2.0)
             }
             If('e'["distance=..5"].notHasTag(shootTag).hasTag(playingTag)) {
@@ -141,6 +144,7 @@ fun loadLandMines() {
     val detonateFunc = McFunction("weapons/primary/mine/detonate") {
         Command.tag(self).add("safe")
         self.data["{}"] = "{PickupDelay:0s}"
+
         val uuidScore = Fluorite.reuseFakeScore("uuid")
         uuidScore.set(self.data["Thrower[0]"])
         Command.execute().As('a'[""]).run {
@@ -163,18 +167,21 @@ fun loadLandMines() {
             .run(detonateFunc)
         Command.execute().asat('a'[""].hasTag(playingTag)).run {
             McFunction("${mines.basePath}/ammo") {
-                val temp = Fluorite.reuseFakeScore("temp")
-                temp.set('e'[""].hasTag(mines.projectile).count())
-                temp.maxOf(1)
-                setAmmoForId(ScoreConstant(mines.myId), temp)
+                val countScore = Fluorite.reuseFakeScore("temp", 0)
+                val tempScore = Fluorite.reuseFakeScore("id")
+                tempScore.set(idScore[self])
+                Command.execute().As('e'[""].hasTag(mines.projectile)).If(idScore[self] eq tempScore).run {
+                    countScore += 1
+                }
+                countScore.maxOf(1)
+                setAmmoForId(ScoreConstant(mines.myId), countScore)
             }()
         }
     }
 }
 
-
-
 fun loadExperiments() {
     loadClip()
     loadLandMines()
+    Raygun()
 }

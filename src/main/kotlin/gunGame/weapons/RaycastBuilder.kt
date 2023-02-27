@@ -2,6 +2,7 @@ package gunGame.weapons
 
 import abstractions.PlayerTag
 import enums.IParticle
+import lib.Quad
 import structure.Fluorite
 import utils.Selector
 
@@ -12,6 +13,7 @@ class RaycastBuilder(val name: String, val damage: Int) {
         private val hit = Fluorite.getNewFakeScore("hit", 0)
     }
 
+    private var particleArray = arrayListOf<Quad<IParticle, Int, Double, Double>>()
 
     private var isReward: Boolean = false
     private var secondary: Boolean = false
@@ -26,6 +28,8 @@ class RaycastBuilder(val name: String, val damage: Int) {
     var range = -1
     protected var spread = 0.0
     protected var onWallHit: ((Selector) -> Unit)? = null
+    protected var onRaycastTick: (() -> Unit)? = null
+    protected var onFireBullet: (() -> Unit)? = null
     var onEntityHit: (RaycastWeapon.(Selector, Selector) -> Unit)? = null
     protected var customModelData = -1
     protected var splashRange = 0.0
@@ -76,14 +80,23 @@ class RaycastBuilder(val name: String, val damage: Int) {
         return this
     }
 
+    fun onRaycastTick(onRaycastTick: () -> Unit): RaycastBuilder {
+        this.onRaycastTick = onRaycastTick
+        return this
+    }
+
+    fun onFireBullet(onFireBullet: () -> Unit): RaycastBuilder {
+        this.onFireBullet = onFireBullet
+        return this
+    }
+
     fun withBulletsPerShot(bps: Int): RaycastBuilder {
         bulletsPerShot = bps
         return this
     }
 
-    fun withParticle(particle: IParticle, count: Int = 1): RaycastBuilder {
-        this.particle = particle
-        this.particleCount = count
+    fun addParticle(particle: IParticle, count: Int = 1, radius: Double = 0.0, speed: Double = 0.0): RaycastBuilder {
+        particleArray.add(Quad(particle, count, radius, speed))
         return this
     }
 
@@ -122,22 +135,24 @@ class RaycastBuilder(val name: String, val damage: Int) {
     }
 
     fun done(): RaycastWeapon {
-        val ret =  RaycastWeapon(
+
+        val ret = RaycastWeapon(
             name = name,
             damage = damage,
+            particleArray = particleArray,
             customModelData = customModelData,
             cooldown = cooldown,
             clipSize = clipSize,
             reloadTime = reload,
             piercing = piercing,
-            particleCount = particleCount,
             sound = sound,
-            particle = particle,
             bulletsPerShot = bulletsPerShot,
             range = range,
             spread = spread,
             onWallHit = onWallHit,
             onEntityHit = onEntityHit,
+            onFireBullet = onFireBullet,
+            onRaycastTick = onRaycastTick,
             splashRange = splashRange,
             killMessage = killMessage,
             secondary = secondary,

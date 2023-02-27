@@ -2,22 +2,24 @@ package gunGame
 
 import abstractions.*
 import abstractions.flow.If
+import abstractions.score.Criteria
+import abstractions.score.Objective
 import commands.Command
 import enums.Anchor
 import enums.Blocks
 import enums.Particles
 import events.EventManager
-import gunGame.weapons.*
-import gunGame.weapons.impl.shotCount
-import gunGame.weapons.impl.speedyAmmo
+import gunGame.weapons.ProjectileWeapon
+import gunGame.weapons.impl.*
+import gunGame.weapons.resetAmmo
+import gunGame.weapons.resetCooldown
+import gunGame.weapons.shootTag
 import internal.commands.impl.execute.Execute
 import lib.debug.Log
-import lib.get
-import lib.idScore
 import structure.Fluorite
 import structure.McFunction
 import utils.*
-import utils.score.Objective
+
 
 val streak = Objective("jh.streak", Criteria.dummy, """{"text":"Streak"}""")
 val kills = Objective("jh.kills", Criteria.dummy, """{"text":"Kills"}""")
@@ -28,7 +30,7 @@ val health = Objective("health")
 val timeSinceHit = Objective("timeSinceHit")
 val playingTag = PlayerTag("playing")
 val deadTag = PlayerTag("dead")
-
+val deathStorage = Storage("jh1236:message")
 
 fun setPlaying(playing: Boolean) {
     if (playing) {
@@ -58,7 +60,7 @@ fun healthTick() {
             .actionbar("[{\"text\":\"Health: \",\"color\": \"#DD3333\", \"bold\" : true},{\"score\": {\"name\": \"@s\",\"objective\": \"jh.health\"}, \"bold\" : false}]")
     }
     Command.execute().asat('a'[""].hasTag(playingTag)).positioned(Vec3("~", "-30", "~")).As(self["dy = 10"]).run {
-        Command.data().merge.storage("jh1236:message", """{death:'["",{"selector":"@s","color":"gold"}," slipped and fell"]'}""")
+        deathStorage["death"] = """'["",{"selector":"@s","color":"gold"}," slipped and fell"]'"""
         dieFunc()
     }
 
@@ -106,7 +108,7 @@ private val dieFunc = McFunction("jh1236:health/die") {
         deaths[self] += 1
         tellraw(
             'a'[""],
-            """{"nbt":"death", "storage":"jh1236:message","interpret":true}"""
+            """{"nbt":"death", "storage":"$deathStorage","interpret":true}"""
         )
 
         execute().asat('a'[""].hasTag(shootTag)).run(handleStreak)
@@ -124,9 +126,9 @@ private val dieFunc = McFunction("jh1236:health/die") {
 val deathEvent = EventManager(dieFunc)
 
 val damageSelf = McMethod("jh1236:health/damage", 1) { (damage) ->
-
     with(Command) {
         If(damage gt 0) {
+            damage(self, 1.0, "jh1236:shot")
             Log.info("Damaged ", self, " for ", damage, " damage!!")
             If(self.hasTag(medusaTag) and (damage gt 0)) {
                 resetMedusa()
@@ -163,7 +165,7 @@ fun Execute.asIntersects(entity: Selector): Execute {
 }
 
 fun Execute.lerpFacing(entity: Selector, numerator: Int, denominator: Int): Execute {
-    facing(entity, Anchor.EYES).positioned(loc(0, 0, numerator)).rotated.As(self)
-        .positioned(loc(0, 0, denominator)).facing(self, Anchor.EYES).facing(loc(0, 0, -1)).positioned.As(self)
+    facing(entity, Anchor.EYES).positioned(loc(0, 0, numerator)).rotated(self)
+        .positioned(loc(0, 0, denominator)).facing(self, Anchor.EYES).facing(loc(0, 0, -1)).positioned(self)
     return this
 }

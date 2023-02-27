@@ -3,6 +3,8 @@ package gunGame.weapons
 import abstractions.*
 import abstractions.flow.If
 import abstractions.flow.Tree
+import abstractions.score.Score
+import abstractions.score.ScoreConstant
 import abstractions.variables.NBTTypes
 import commands.Command
 import enums.Items
@@ -16,19 +18,17 @@ import lib.applyNbtToHeldItem
 import lib.copyHeldItemToBlockAndRun
 import lib.copyItemfromSlotAndRun
 import lib.debug.Log
-import lib.get
 import structure.ExternalFile
 import structure.Fluorite
 import structure.McFunction
 import utils.Selector
+import utils.get
 import utils.rel
-import utils.score.Score
-import utils.score.ScoreConstant
 
 val shootTag = PlayerTag("shot")
 fun coolDownSetup() {
     ExternalFile(
-        "G:/Programming/kotlin/KotlinMc/src/main/resources/ready.json",
+        "G:/Programming/kotlin/GunGame/src/main/resources/ready.json",
         "data/jh1236/predicates/ready.json"
     )
 }
@@ -123,15 +123,15 @@ val setCooldownForId = McMethod("jh1236:cooldown/reset_special", 2) { (id, coold
 
 fun ammoDisplayTick() {
     with(Command) {
-        execute().asat('a'[""].hasTag(playingTag)).If(self hasData "SelectedItem.tag.jh1236.ammo").run {
+        execute().asat('a'[""].hasTag(playingTag)).If(self.data["SelectedItem.tag.jh1236.ammo"]).run {
             copyHeldItemToBlockAndRun {
                 it["Count"] = it["tag.jh1236.ammo.value"]
             }
         }
-        execute().asat('a'[""].hasTag(playingTag)).If(self hasData "Inventory[{Slot:-106b}]").run {
+        execute().asat('a'[""].hasTag(playingTag)).If(self.data["Inventory[{Slot:-106b}]"]).run {
             item().replace.entity(self, "weapon.mainhand").from.entity(self, "weapon.offhand")
             item().replace.entity(self, "weapon.offhand").with(Items.AIR)
-            If(self hasData "SelectedItem.tag.jh1236.ammo" and self["predicate = jh1236:ready"]) {
+            If(self.data[ "SelectedItem.tag.jh1236.ammo"] and self["predicate = jh1236:ready"]) {
                 val ammo = Fluorite.reuseFakeScore("ammo")
                 ammo.set(self.data["SelectedItem.tag.jh1236.ammo.value"])
                 val max = Fluorite.reuseFakeScore("max")
@@ -150,7 +150,7 @@ fun ammoDisplayTick() {
 fun coolDownTick() {
     with(Command) {
         execute().asat('a'["predicate = !jh1236:ready"].hasTag(playingTag))
-            .If(self hasData "SelectedItem.tag.jh1236.weapon").run {
+            .If(self.data["SelectedItem.tag.jh1236.weapon"]).run {
                 val gameTime = Fluorite.reuseFakeScore("gametime")
                 gameTime.set { time().query.gametime }
                 val coolDown = Fluorite.reuseFakeScore("cd")
@@ -200,9 +200,8 @@ val decrementClip = ReturningMethod("jh1236:dec_clip", 2) {
 }
 val resetAmmo = McFunction("ammo/reset") {
     repeat(9) {
-        If(self.hasData("Inventory[{Slot:${it}b}].tag.jh1236.ammo.max")) {
+        If(self.data["Inventory[{Slot:${it}b}].tag.jh1236.ammo.max"]) {
             copyItemfromSlotAndRun("hotbar.$it") { itemData ->
-                Command.say("$it!!")
                 itemData["tag.jh1236.ammo.value"] = itemData["tag.jh1236.ammo.max"]
                 val temp = Fluorite.reuseFakeScore("count")
                 Command.tellraw('a'[""], temp)

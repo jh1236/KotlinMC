@@ -1,7 +1,11 @@
 package gunGame
 
-import abstractions.*
+import abstractions.McMethod
+import abstractions.PlayerTag
+import abstractions.Storage
 import abstractions.flow.If
+import abstractions.hasTag
+import abstractions.schedule.Sleep
 import abstractions.score.Criteria
 import abstractions.score.Objective
 import commands.Command
@@ -118,7 +122,8 @@ private val dieFunc = McFunction("jh1236:health/die") {
             resetAmmo()
             resetCooldown()
         }
-        schedule().As(self, 80, respawnFunc).append
+        Sleep(Duration(80))
+        respawnFunc()
     }
 }
 
@@ -134,6 +139,9 @@ val damageSelf = McMethod("jh1236:health/damage", 1) { (damage) ->
                 resetMedusa()
                 damage /= 10
             }
+            If(self.hasTag(invisTag)) {
+                invisCooldown[self] = 10
+            }
             health[self] -= damage
             timeSinceHit[self] = 0
             particle(
@@ -143,7 +151,6 @@ val damageSelf = McMethod("jh1236:health/damage", 1) { (damage) ->
                 1.0,
                 20
             ).force('a'["distance = .75.."])
-            playsound("entity.generic.hurt").player(self["tag =! noSound"], rel(), 2.0, 1.0, 1.0)
             execute().asat('a'[""].hasTag(shootTag)).run {
                 playsound("entity.arrow.hit_player")
                     .player(self, rel(), 2.0, 1.0, 1.0)

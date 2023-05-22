@@ -1,7 +1,6 @@
 package gunGame.weapons.impl
 
 import abstractions.PlayerTag
-import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Tree
 import abstractions.hasTag
@@ -20,7 +19,6 @@ import gunGame.weapons.applyCoolDown
 import gunGame.weapons.setCooldownForId
 import gunGame.weapons.shootTag
 import internal.structure.format
-import lib.debug.Log
 import structure.Fluorite
 import structure.McFunction
 import utils.Vec2
@@ -32,6 +30,9 @@ import kotlin.math.sin
 
 private val guardianScore = Objective("guardianRC")
 private val ticksShot = Objective("ticksShot")
+
+
+private const val trueCooldown = 30
 
 
 class Raygun : RaycastWeapon(
@@ -48,9 +49,7 @@ class Raygun : RaycastWeapon(
         var myId: Int = 0
         val guardianTag = PlayerTag("guardian")
     }
-
     val fireFunc = McFunction("$basePath/shoot")
-
 
     init {
         Raygun.myId = myId
@@ -63,7 +62,7 @@ class Raygun : RaycastWeapon(
                     ).hasTag(guardianTag)
                 )
                 .run {
-                    setCooldownForId(myId, 15)
+                    setCooldownForId(myId, trueCooldown)
                     guardianTag.remove(self)
                     Command.effect().clear(self, Effects.SLOWNESS)
                     guardianScore[self] = 0
@@ -77,7 +76,7 @@ class Raygun : RaycastWeapon(
                 }
             Command.execute().asat('a'["scores = {$guardianScore = 1}", "predicate = jh1236:ready"].hasTag(playingTag))
                 .run {
-                    applyCoolDown(15)
+                    applyCoolDown(trueCooldown)
                     guardianTag.remove(self)
                     guardianScore[self] = 0
                     ticksShot[self] = 0
@@ -96,10 +95,10 @@ class Raygun : RaycastWeapon(
         this.onWallHit = {
             Command.particle(Particles.BUBBLE, loc(0, 0, -.25), 0, 0, 0, 0, 1).force('a'[""].hasTag(shootTag))
         }
-        this.onEntityHit = { shooter, hit ->
-            If(ticksShot[shooter] gt 200) {
+        this.onEntityHit = { hit, shooter ->
+            If(ticksShot[shooter] gt 78 and (ticksShot[shooter] lt 120)) {
                 Command.execute().asat(hit).run {
-                    damageSelf(3000)
+                    damageSelf(240)
                 }
             }
         }
@@ -111,12 +110,11 @@ class Raygun : RaycastWeapon(
         guardianTag.add(self)
         fireFunc.append {
             ticksShot[self] += 1
-            Log.info("bang")
             val shoot = McFunction {
                 super.fire()
             }
             If(ticksShot[self] gte 200) {
-                applyCoolDown(15)
+                applyCoolDown(trueCooldown)
                 guardianTag.remove(self)
                 Command.effect().clear(self, Effects.SLOWNESS)
                 guardianScore[self] = 0
@@ -162,10 +160,9 @@ class Raygun : RaycastWeapon(
             }.Else {
                 //TODO: these three raycasts should be one
                 shoot()
-                shoot()
-                shoot()
+
             }
-            If(ticksShot[self].rem(2) eq 0) {
+            If(ticksShot[self].rem(3) eq 0) {
                 Command.raw("playsound minecraft:block.amethyst_cluster.step master @s")
             }
             Command.effect().give(self, Effects.SLOWNESS, 1, 3, true)

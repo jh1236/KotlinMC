@@ -12,7 +12,6 @@ class ProjectileBuilder(val name: String, val damage: Int) {
     private var activationDelay: Int = -1
     private var maxAllowed = -1
     private var piercing = false
-    private var particleCount: Int = 1
     private var canHitOwner: Boolean = false
     private var sound = arrayListOf<Pair<String, Double>>()
     private var particleArray = arrayListOf<Quad<IParticle, Int, Number, Number>>()

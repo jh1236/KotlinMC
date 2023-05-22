@@ -1,7 +1,6 @@
 package gunGame.maps
 
 import abstractions.Trigger
-import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Switch
 import abstractions.score.Objective

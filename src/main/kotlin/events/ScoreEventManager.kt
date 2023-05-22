@@ -1,6 +1,5 @@
 package events
 
-import abstractions.asat
 import abstractions.score.Criteria
 import abstractions.score.Objective
 import commands.Command

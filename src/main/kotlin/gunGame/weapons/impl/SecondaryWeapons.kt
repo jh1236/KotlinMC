@@ -1,12 +1,13 @@
 package gunGame.weapons.impl
 
 import abstractions.PlayerTag
-import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Tree
 import abstractions.hasTag
 import abstractions.notHasTag
+import abstractions.score.Objective
 import abstractions.score.Score
+import abstractions.score.ScoreConstant
 import commands.Command
 import enums.*
 import gunGame.*
@@ -27,13 +28,14 @@ lateinit var tomeOfPetrification: ProjectileWeapon
 lateinit var teleport: RaycastWeapon
 lateinit var leap: ProjectileWeapon
 lateinit var smokeCloud: AbstractWeapon
-lateinit var trapPlanter: AbstractWeapon
+lateinit var trapPlanter: ProjectileWeapon
 lateinit var invis: AbstractWeapon
 lateinit var compass: AbstractWeapon
 lateinit var medusa: AbstractWeapon
 const val pi = Math.PI
 val medusaTag = PlayerTag("medusa")
 val invisTag = PlayerTag("invis")
+val invisCooldown = Objective("invis")
 
 val resetMedusa = McFunction("jh1236:weapons/secondary/medusa") {
     applyCoolDown(160)
@@ -210,6 +212,21 @@ private fun loadTraps() {
                 )
 
             }.asSecondary().done()
+    Fluorite.tickFile += {
+
+        Command.execute().asat('a'[""].hasTag(playingTag)).run {
+            McFunction("${trapPlanter.basePath}/ammo") {
+                val countScore = Fluorite.reuseFakeScore("temp", 0)
+                val tempScore = Fluorite.reuseFakeScore("id")
+                tempScore.set(idScore[self])
+                Command.execute().As('e'[""].hasTag(trapPlanter.projectile)).If(idScore[self] eq tempScore).run {
+                    countScore += 1
+                }
+                countScore.maxOf(1)
+                setAmmoForId(ScoreConstant(trapPlanter.myId), countScore)
+            }()
+        }
+    }
 }
 
 
@@ -335,8 +352,10 @@ private fun loadMedusa() {
 private fun loadInvis() {
     invis = object : AbstractWeapon("stealth", 0, true) {
 
+        private val invisHurt = PlayerTag("invisHurt")
         val func = McFunction(basePath) {
             If(self.notHasTag(invisTag)) {
+                invisCooldown[self] = 0
                 If(health[self] gt maxHealth[self]) {
                     val dif = Fluorite.reuseFakeScore("health")
                     dif.set(maxHealth[self])
@@ -347,14 +366,25 @@ private fun loadInvis() {
                 }
                 maxHealth[self] = 1000
             }
-            Command.effect().give(self, Effects.INVISIBILITY, 1, 0, true)
-            val gt = Fluorite.reuseFakeScore("gametime")
-            gt.set { Command.time().query.gametime }
-            gt %= 10
-            If(gt eq 0) {
-                Command.particle(Particles.END_ROD, rel(0, .5, 0), 0.2, .5, 0.2, 0.0, 1)
+            If(invisCooldown[self] lte 0) {
+                invisHurt.remove(self)
+                Command.effect().give(self, Effects.INVISIBILITY, 1, 0, true)
+                val gt = Fluorite.reuseFakeScore("gametime")
+                gt.set { Command.time().query.gametime }
+                gt %= 10
+                If(gt eq 0) {
+                    Command.particle(Particles.END_ROD, rel(0, .5, 0), 0.2, .5, 0.2, 0.0, 1)
+                }
+                invisTag.add(self)
+            }.ElseIf(invisCooldown[self] gt 0) {
+                If(self.notHasTag(invisHurt)) {
+                    Command.particle(Particles.END_ROD, rel(0, 1, 0), 0.2, .5, 0.2, 0.3, 40)
+                    Command.effect().clear(self, Effects.INVISIBILITY)
+                    invisHurt.add(self)
+                }
+                invisCooldown[self] -= 1
             }
-            invisTag.add(self)
+
         }
         val endFunc = McFunction("$basePath/end") {
             Command.effect().clear(self, Effects.INVISIBILITY)
@@ -388,7 +418,7 @@ private fun loadLeap() {
             "Tome of Propulsion",
             0, 111, 1.8,
             projectileEntity = Entities.BEE,
-            projectileSpeed = 2,
+            projectileSpeed = 3,
             particleArray = listOf(Quad(Particles.SCRAPE, 1, 0, 0)),
             secondary = true,
             onWallHit = {

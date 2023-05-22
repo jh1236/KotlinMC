@@ -5,7 +5,6 @@ import abstractions.flow.If
 import abstractions.score.Score
 import commands.Command
 import gunGame.asIntersects
-import lib.debug.Log
 import structure.Fluorite
 import utils.Selector
 import utils.loc
@@ -42,7 +41,6 @@ fun raycastEntity(
     if (count >= 0) {
         rangeScore.set(count)
     }
-    Log.info(rangeScore)
     with(Command) {
         execute().positioned(loc(0, 0, 0.25)).run {
             Do {

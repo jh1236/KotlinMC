@@ -1,11 +1,9 @@
 package gunGame.weapons
 
-import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Tree
 import abstractions.hasTag
 import abstractions.notHasTag
-import abstractions.score.Objective
 import abstractions.score.Score
 import commands.Command
 import enums.IParticle
@@ -14,10 +12,14 @@ import lib.Quad
 import lib.rangeScore
 import lib.raycastEntity
 import structure.McFunction
-import utils.*
+import utils.Selector
+import utils.get
+import utils.loc
+import utils.rel
 import kotlin.math.round
 import kotlin.math.roundToInt
 import kotlin.random.Random
+
 
 open class RaycastWeapon(
     name: String,
@@ -44,7 +46,6 @@ open class RaycastWeapon(
 
     companion object {
         private val random = Random(19930749089)
-        private val sprayObjective = Objective("spray")
     }
 
     override fun fire() {
@@ -115,7 +116,7 @@ open class RaycastWeapon(
                 safeTag.add(self)
                 damageSelf(damage)
                 onEntityHit?.let {
-                    this.it(self, 'a'[""].hasTag(shootTag))
+                    this.it(self, 'a'["limit = 1"].hasTag(shootTag))
                 }
                 if (splashRange > 0) {
                     splash()
@@ -136,13 +137,13 @@ open class RaycastWeapon(
     }
 
     private fun getRandomOffset(spread: Double): Double {
-        return round((random.nextDouble() - .5f) * (random.nextDouble() - .5f) * 1000 * spread) / 100f
+        return round((random.nextDouble() - .5f) * (random.nextDouble() - .5f) * 1000 * spread) / 10_000f
     }
 
     private fun shotWithSpread(score: Score) {
         Tree(score, 0..200) {
             Command.execute().If(score eq it)
-                .rotated(Vec2("~${getRandomOffset(spread)}", "~${getRandomOffset(spread)}")).run { rayCast() }
+                .facing(loc(getRandomOffset(spread), getRandomOffset(spread), 1.0)).run { rayCast() }
         }
         score -= 1
         If(score lt 0) {

@@ -2,6 +2,7 @@ package gunGame.weapons
 
 import abstractions.flow.If
 import abstractions.hasTag
+import abstractions.score.Objective
 import abstractions.score.Score
 import commands.Command
 import enums.Anchor
@@ -27,6 +28,7 @@ abstract class AbstractCoasWeapon(
 ) : AbstractWeapon(name, damage, secondary, isReward) {
     companion object {
         val currentId: Score = Fluorite.getNewFakeScore("id")
+        val sprayObjective = Objective("spray")
 
         @JvmStatic
         lateinit var coasManager: ScoreEventManager
@@ -58,7 +60,6 @@ abstract class AbstractCoasWeapon(
         Log.debug("shot weapon with id $myId!!")
         If(!self["nbt = {SelectedItem:{tag:{jh1236:{ready:0b}}}}"]) {
             cdBeforeShot.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
-            Log.info("asdkgasd:", cdBeforeShot)
             if (clipsize != 1) {
                 applyCoolDown(decrementClip((cooldown * 20).roundToInt(), (reload * 20).roundToInt()))
             } else {

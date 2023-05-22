@@ -1,13 +1,12 @@
 package gunGame.weapons.impl
 
-import abstractions.As
 import abstractions.PlayerTag
 import abstractions.advancements.Advancement
 import abstractions.advancements.EntityHurtPlayer
-import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Tree
 import abstractions.hasTag
+import abstractions.schedule.Sleep
 import abstractions.score.Criteria
 import abstractions.score.Objective
 import commands.Command
@@ -24,10 +23,7 @@ import gunGame.weapons.shootTag
 import lib.random.Random
 import structure.Fluorite
 import structure.McFunction
-import utils.Selector
-import utils.Vec2
-import utils.get
-import utils.loc
+import utils.*
 
 val ninjaScore = Objective("useIronSword", Criteria.useItem(Items.IRON_SWORD))
 val traceScore = Objective("trace")
@@ -79,17 +75,16 @@ fun loadNinjaSword() {
     }
 
     val hitFunc = McFunction("ninja_sword/hit") {
-        Command.schedule().As(self, 1) {
-            shootTag.add('a'["scores = {$ninjaScore = 1..}"])
-            damageSelf(ninjaSword.damage)
-            ninjaScore['a'[""]] = 0
-            stabbed.add(self)
-            Command.execute().asat('a'[""].hasTag(shootTag)).run {
-                tryTp()
-                shootTag.remove(self)
-            }
-            stabbed.remove(self)
+        Sleep(Duration(1))
+        shootTag.add('a'["scores = {$ninjaScore = 1..}"])
+        damageSelf(ninjaSword.damage)
+        ninjaScore['a'[""]] = 0
+        stabbed.add(self)
+        Command.execute().asat('a'[""].hasTag(shootTag)).run {
+            tryTp()
+            shootTag.remove(self)
         }
+        stabbed.remove(self)
         Command.advancement().revoke(self).only("jh1236:ninja_hit")
     }
 
@@ -128,13 +123,12 @@ fun stoneSword() {
 
     }
     val swordHitFunc = McFunction("sword/hit") {
-        Command.schedule().As(self, 1) {
-            shootTag.add('a'["scores = {$swordScore = 1..}"])
-            damageSelf(sword.damage)
-            swordScore['a'[""]] = 0
-            Command.execute().asat('a'[""].hasTag(shootTag)).run {
-                shootTag.remove(self)
-            }
+        Sleep(Duration(1))
+        shootTag.add('a'["scores = {$swordScore = 1..}"])
+        damageSelf(sword.damage)
+        swordScore['a'[""]] = 0
+        Command.execute().asat('a'[""].hasTag(shootTag)).run {
+            shootTag.remove(self)
         }
         Command.advancement().revoke(self).only("jh1236:sword_hit")
     }

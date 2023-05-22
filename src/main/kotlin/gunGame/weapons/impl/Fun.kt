@@ -1,11 +1,10 @@
 package gunGame.weapons.impl
 
-import abstractions.As
 import abstractions.PlayerTag
-import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Switch
 import abstractions.hasTag
+import abstractions.schedule.Sleep
 import abstractions.variables.NBTTypes
 import commands.Command
 import enums.*
@@ -16,10 +15,7 @@ import gunGame.weapons.shootTag
 import lib.random.Random
 import structure.Fluorite
 import structure.McFunction
-import utils.Vec2
-import utils.get
-import utils.loc
-import utils.rel
+import utils.*
 
 lateinit var catGun: RaycastWeapon
 lateinit var weezer: RaycastWeapon
@@ -92,9 +88,8 @@ fun loadDance() {
             Command.playsound("custom.gangnum").master(hit, rel(), 100.0)
             //TODO: convert to script
             Command.raw("execute at @s run particle minecraft:entity_effect ~ ~ ~ 0.9960784313725490196078431372549 0.9921568627450980392156862745098 0.0039215686274509803921568627451 1 0 force @s")
-            Command.schedule().As(self, 4960) {
-                Command.raw("particle minecraft:entity_effect ~ ~ ~ 0.9960784313725490196078431372549 0.9921568627450980392156862745098 1 1 0 force @s")
-            }
+            Sleep(Duration.seconds(248))
+            Command.raw("particle minecraft:entity_effect ~ ~ ~ 0.9960784313725490196078431372549 0.9921568627450980392156862745098 1 1 0 force @s")
         }.asReward().done()
 }
 

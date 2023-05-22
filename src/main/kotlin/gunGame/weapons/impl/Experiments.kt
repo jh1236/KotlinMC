@@ -1,21 +1,19 @@
 package gunGame.weapons.impl
 
 import abstractions.PlayerTag
-import abstractions.advancements.Advancement
-import abstractions.advancements.PlayerInteractedWithEntity
-import abstractions.asat
 import abstractions.flow.If
 import abstractions.hasTag
 import abstractions.notHasTag
 import abstractions.score.Objective
 import abstractions.score.ScoreConstant
 import commands.Command
+import enums.Blocks
 import enums.Entities
 import enums.Items
 import enums.Particles
 import gunGame.*
 import gunGame.weapons.*
-import lib.debug.Log
+import lib.random.Random
 import structure.Fluorite
 import structure.McFunction
 import utils.get
@@ -23,12 +21,10 @@ import utils.rel
 
 lateinit var clipOfDexterity: AbstractCoasWeapon
 lateinit var mines: ProjectileWeapon
-lateinit var spinGun: RaycastWeapon
+lateinit var flameThrower: AbstractCoasWeapon
 
 val speedyAmmo = PlayerTag("speed_ammo")
-
 val shotCount = Objective("shotsRemaining")
-val spinsCount = Objective("spinsRemaining")
 
 
 fun loadClip() {
@@ -50,7 +46,6 @@ fun loadClip() {
 
 
         override fun fire() {
-            Log.info("asdasd")
             Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
             Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
             Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
@@ -98,13 +93,11 @@ fun loadLandMines() {
                 gt.set { time().query.gametime }
                 gt %= 4
                 If(gt eq 0) {
-                    execute()
-                        .As('a'["nbt = {SelectedItem:{tag:{jh1236:{weapon:$id}}}}"].hasTag(shootTag)).run {
-                            execute().at(self).run.playsound("minecraft:block.note_block.didgeridoo")
-                                .master(
-                                    self, rel(), 1.0, 2.0
-                                )
-                        }
+                    execute().As('a'["nbt = {SelectedItem:{tag:{jh1236:{weapon:$id}}}}"].hasTag(shootTag)).run {
+                        execute().at(self).run.playsound("minecraft:block.note_block.didgeridoo").master(
+                            self, rel(), 1.0, 2.0
+                        )
+                    }
 
                 }
             }
@@ -116,11 +109,7 @@ fun loadLandMines() {
 
     mines = ProjectileBuilder("Mine", 10000)
 
-        .withRange(30 * 5)
-        .canHitOwner()
-        .withProjectile(0, 5)
-        .withActivationDelay(2.0)
-        .withSplash(8.0)
+        .withRange(30 * 5).canHitOwner().withProjectile(0, 5).withActivationDelay(2.0).withSplash(8.0)
         .onProjectileTick {
             If(health[self] inRange range - activationDelay..range - activationDelay + 3) {
                 Command.execute()
@@ -128,19 +117,14 @@ fun loadLandMines() {
                     .master(self, rel(), 1.0, 1.8)
             }
             projectileTick(range, activationDelay, myId)
-        }
-        .withCooldown(3.0)
-        .withCustomModelData(11)
-        .canBeShot()
-        .addSound("minecraft:block.anvil.use", 0.7)
+        }.withCooldown(3.0).withCustomModelData(11).canBeShot().addSound("minecraft:block.anvil.use", 0.7)
         .onEntityHit { _, _ ->
             bigExplosion()
         }
         .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was blown to smithereens by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
         .onWallHit {
             bigExplosion()
-        }
-        .done()
+        }.done()
     val detonateFunc = McFunction("weapons/primary/mine/detonate") {
         Command.tag(self).add("safe")
         self.data["{}"] = "{PickupDelay:0s}"
@@ -180,8 +164,54 @@ fun loadLandMines() {
     }
 }
 
+fun loadFlameThrower() {
+    flameThrower = object : ProjectileWeapon(
+        "Flame Thrower",
+        500,
+        0,
+        1.0,
+        projectileSpeed = 2,
+        particleArray = listOf(),
+        projectileEntity = Entities.BLOCK_DISPLAY
+    ) {
+        init {
+            onProjectileTick = {
+                If(health[self].rem(20) eq 10) {
+                    self.data["block_state.Name"] = "\"minecraft:tnt\""
+                }.ElseIf(health[self].rem(20) eq 0) {
+                    self.data["block_state.Name"] = "\"minecraft:white_concrete\""
+                }
+            }
+
+            onWallHit = {
+                Command.playsound("minecraft:entity.generic.explode").master('a'[""], rel(), 0.1)
+                Command.particle(Particles.FALLING_DUST(Blocks.GRAY_CONCRETE_POWDER), rel(), 0.05, 0.05, 0.05, 0.01, 5)
+                Command.kill(self)
+            }
+            splashRange = 5.0
+            spread = 3.0
+
+            projectilesPerShot = 10
+            setup()
+        }
+
+        override fun fire() {
+            super.fire()
+            val processed = PlayerTag("tntProcessed")
+            Command.execute().asat('e'[""].hasTag(projectile).notHasTag(processed)).run {
+                health[self] = Random.next(20).add(20).add(Random.next(20))
+                processed.add(self)
+                self.data["{}"] = "{transformation:{scale:[.3f,.3f,.3f]}, block_state:{Name:\"tnt\"}}"
+            }
+        }
+
+    }
+}
+
+
 fun loadExperiments() {
     loadClip()
     loadLandMines()
     Raygun()
+    loadFlameThrower()
 }

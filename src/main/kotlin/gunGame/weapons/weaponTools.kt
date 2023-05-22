@@ -1,8 +1,11 @@
 package gunGame.weapons
 
-import abstractions.*
+import abstractions.McMethod
+import abstractions.PlayerTag
+import abstractions.ReturningMethod
 import abstractions.flow.If
 import abstractions.flow.Tree
+import abstractions.hasTag
 import abstractions.score.Score
 import abstractions.score.ScoreConstant
 import abstractions.variables.NBTTypes

@@ -1,7 +1,6 @@
 package gunGame.weapons.impl
 
 import abstractions.PlayerTag
-import abstractions.asat
 import abstractions.flow.If
 import abstractions.flow.Tree
 import abstractions.hasTag
@@ -287,7 +286,7 @@ private fun loadRifle() {
 
 fun loadPrimaries() {
     loadSniper()
-    loadShotgun()
+    oldloadShotgun()
     loadBazooka()
     miniGun = Minigun()
     loadLaser()

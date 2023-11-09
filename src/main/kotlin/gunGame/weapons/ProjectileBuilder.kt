@@ -1,11 +1,13 @@
 package gunGame.weapons
 
+import enums.Entities
 import enums.IParticle
 import lib.Quad
 import utils.Selector
 import kotlin.math.roundToInt
 
 class ProjectileBuilder(val name: String, val damage: Int) {
+    private var nbt: String = ""
     private var isReward = false
     private var secondary = false
     private var ableBeShot = false
@@ -19,19 +21,17 @@ class ProjectileBuilder(val name: String, val damage: Int) {
     private var cooldown = 0.0
     private var clipSize = 1
     private var range = -1
-    private var onWallHit: ((Selector) -> Unit)? = null
+    private var onWallHit: (ProjectileWeapon.(Selector) -> Unit)? = null
     private var onProjectileTick: (ProjectileWeapon.(Selector) -> Unit)? = null
-    private var onEntityHit: (ProjectileWeapon.(Selector, Selector) -> Unit)? = null
+    private var onProjectileSpawn: (ProjectileWeapon.(Selector) -> Unit)? = null
+    private var onEntityHit: (ProjectileWeapon.(Selector, Selector, Selector) -> Unit)? = null
     private var customModelData = -1
-    private var projectileSpeed = -1
+    private var projectileSpeed = -1.0
     private var splashRange = 0.0
+    private var entity: Entities? = null
     private var killMessage =
         """'["",{"selector":"@s", "color":"gold"}, " was killed by ", {"selector":"@a[tag = $shootTag]"}]'"""
 
-    fun withProjectileSpeed(speed: Int): ProjectileBuilder {
-        this.projectileSpeed = speed
-        return this
-    }
 
     fun withKillMessage(killMessage: String): ProjectileBuilder {
         this.killMessage = killMessage
@@ -80,13 +80,18 @@ class ProjectileBuilder(val name: String, val damage: Int) {
         return this
     }
 
-    fun onEntityHit(onHit: ProjectileWeapon.(Selector, Selector) -> Unit): ProjectileBuilder {
+    fun onEntityHit(onHit: ProjectileWeapon.(Selector, Selector, Selector) -> Unit): ProjectileBuilder {
         this.onEntityHit = onHit
         return this
     }
 
-    fun onWallHit(onHit: (Selector) -> Unit): ProjectileBuilder {
+    fun onWallHit(onHit: ProjectileWeapon.(Selector) -> Unit): ProjectileBuilder {
         this.onWallHit = onHit
+        return this
+    }
+
+    fun onProjectileSpawn(onSpawn: ProjectileWeapon.(Selector) -> Unit): ProjectileBuilder {
+        this.onProjectileSpawn = onSpawn
         return this
     }
 
@@ -119,9 +124,10 @@ class ProjectileBuilder(val name: String, val damage: Int) {
         return this
     }
 
-    fun withProjectile(speed: Int, maxAllowed: Int = -1): ProjectileBuilder {
+    fun withProjectile(speed: Double, maxAllowed: Int = -1, entity: Entities? = null): ProjectileBuilder {
         projectileSpeed = speed
         this.maxAllowed = maxAllowed
+        this.entity = entity
         return this
     }
 
@@ -132,6 +138,12 @@ class ProjectileBuilder(val name: String, val damage: Int) {
 
     fun withRange(range: Int): ProjectileBuilder {
         this.range = (range * 4)
+        return this
+    }
+
+
+    fun withNBT(nbt: String): ProjectileBuilder {
+        this.nbt = nbt
         return this
     }
 
@@ -157,9 +169,13 @@ class ProjectileBuilder(val name: String, val damage: Int) {
             splashRange = splashRange,
             killMessage = killMessage,
             secondary = secondary,
-            isReward = isReward
+            isReward = isReward,
+            projectileNBT = nbt,
+            projectileEntity = entity ?: Entities.MARKER,
+            onProjectileSpawn = onProjectileSpawn
         )
         ret.setup()
         return ret
     }
+
 }

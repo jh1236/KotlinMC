@@ -1,10 +1,7 @@
 package gunGame
 
-import abstractions.McMethod
-import abstractions.PlayerTag
-import abstractions.Storage
+import abstractions.*
 import abstractions.flow.If
-import abstractions.hasTag
 import abstractions.schedule.Sleep
 import abstractions.score.Criteria
 import abstractions.score.Objective
@@ -13,12 +10,17 @@ import enums.Anchor
 import enums.Blocks
 import enums.Particles
 import events.EventManager
+import gunGame.maps.playTaunt
+import gunGame.maps.randomMode
+import gunGame.maps.secondarySelectScore
+import gunGame.maps.weaponSelectScore
 import gunGame.weapons.ProjectileWeapon
 import gunGame.weapons.impl.*
 import gunGame.weapons.resetAmmo
 import gunGame.weapons.resetCooldown
 import gunGame.weapons.shootTag
 import internal.commands.impl.execute.Execute
+import internal.commands.impl.execute.OnTarget
 import lib.debug.Log
 import structure.Fluorite
 import structure.McFunction
@@ -27,6 +29,7 @@ import utils.*
 
 val streak = Objective("jh.streak", Criteria.dummy, """{"text":"Streak"}""")
 val kills = Objective("jh.kills", Criteria.dummy, """{"text":"Kills"}""")
+val coins = Objective("jh.coins", Criteria.dummy, """{"text":"Coins"}""")
 val deaths = Objective("jh.deaths", Criteria.dummy, """{"text":"Deaths"}""")
 val kdr = Objective("jh.kdr", Criteria.dummy, """{"text":"100 * KDR"}""")
 val maxHealth = Objective("maxHealth")
@@ -35,14 +38,6 @@ val timeSinceHit = Objective("timeSinceHit")
 val playingTag = PlayerTag("playing")
 val deadTag = PlayerTag("dead")
 val deathStorage = Storage("jh1236:message")
-
-fun setPlaying(playing: Boolean) {
-    if (playing) {
-        playingTag.add(self)
-    } else {
-        playingTag.remove(self)
-    }
-}
 
 fun Execute.ifPlaying(player: Selector = self): Execute {
     this.If(player.hasTag(playingTag))
@@ -64,8 +59,30 @@ fun healthTick() {
             .actionbar("[{\"text\":\"Health: \",\"color\": \"#DD3333\", \"bold\" : true},{\"score\": {\"name\": \"@s\",\"objective\": \"jh.health\"}, \"bold\" : false}]")
     }
     Command.execute().asat('a'[""].hasTag(playingTag)).positioned(Vec3("~", "-30", "~")).As(self["dy = 10"]).run {
-        deathStorage["death"] = """'["",{"selector":"@s","color":"gold"}," slipped and fell"]'"""
+        Command.execute().on(OnTarget.ATTACKER).run {
+            shootTag.add(self)
+        }
+        If('a'[""].hasTag(shootTag)) {
+            deathStorage["death"] =
+                """'["",{"selector":"@s","color":"gold"}," was knocked into the void by ", {"selector":"@a[tag = $shootTag]","color":"gold"}]'"""
+        }.Else {
+            deathStorage["death"] = """'["",{"selector":"@s","color":"gold"}," slipped and fell"]'"""
+        }
         dieFunc()
+        shootTag.remove('a'[""])
+    }
+    Command.execute().asat('a'[""].hasTag(playingTag)).If(rel() isBlock Blocks.STRUCTURE_VOID).run {
+        Command.execute().on(OnTarget.ATTACKER).If(self.hasTag(playingTag)).run {
+            shootTag.add(self)
+        }
+        If('a'[""].hasTag(shootTag)) {
+            deathStorage["death"] =
+                """'["",{"selector":"@s","color":"gold"}," was knocked into the void by ", {"selector":"@a[tag = $shootTag]","color":"gold"}]'"""
+        }.Else {
+            deathStorage["death"] = """'["",{"selector":"@s","color":"gold"}," slipped and fell"]'"""
+        }
+        dieFunc()
+        shootTag.remove('a'[""])
     }
 
 }
@@ -77,19 +94,36 @@ private val calcKDR = McFunction("jh1236:health/kdr") {
 }
 
 val respawnFunc = McFunction("health/respawn") {
-    Command.tp(self, abs(-16, 3, -89))
+    streak[self] = 0
+    If(randomMode eq 1) {
+        Command.tp(self, abs(-64, 17, -65), Vec2(180, 0))
+        regenRandom()
+        weaponSelectScore.set(primary1)
+        secondarySelectScore.set(secondary1)
+    }.Else {
+        Command.tp(self, abs(-16, 3, -89), Vec2(180, 0))
+    }
+    val tempScore = Fluorite.reuseFakeScore("temp")
+    tempScore.set(idScore[self])
+    Command.execute().As('e'[""].hasTag(smokeTag)).If(idScore[self] eq tempScore).run {
+        Command.kill(self)
+    }
     Command.gamemode().adventure(self)
     deadTag.remove(self)
     playingTag.remove(self)
     Command.clear()
+    smgScore[self] = 0
+    minigunScore[self] = 0
+    guardianScore[self] = 0
     Command.stopsound(self)
     speedyAmmo.remove(self)
     shotCount[self] = 0
     Command.raw("execute at @s run particle minecraft:entity_effect ~ ~ ~ 0.9960784313725490196078431372549 0.9921568627450980392156862745098 1 1 0 force @s")
     Command.effect().clear
-    health[self] = 3000
     maxHealth[self] = 3000
+    health[self].reset()
 }
+
 private val dieFunc = McFunction("jh1236:health/die") {
     with(Command) {
         val tempScore = Fluorite.reuseFakeScore("id")
@@ -97,31 +131,48 @@ private val dieFunc = McFunction("jh1236:health/die") {
         execute().As('e'[""].hasTag(ProjectileWeapon.universalProjectile)).If(idScore[self] eq tempScore).run {
             kill(self)
         }
+        execute().As('e'[""].hasTag(smokeTag)).If(idScore[self] eq tempScore).run {
+            kill(self)
+        }
         playingTag.remove(self)
         deadTag.add(self)
         clear()
+        smgScore[self] = 0
+        minigunScore[self] = 0
+        guardianScore[self] = 0
         speedyAmmo.remove(self)
         shotCount[self] = 0
         effect().clear
         gamemode().spectator
         spectate('a'["limit = 1"].hasTag(shootTag))
         raw("execute at @s run particle minecraft:entity_effect ~ ~ ~ 0.9960784313725490196078431372549 0.9921568627450980392156862745098 1 1 0 force @s")
-        kills['a'["limit = 1"].hasTag(shootTag)] += 1
+        kills['a'["limit = 1"].hasTag(shootTag).hasTag(playingTag)] += 1
         streak['a'["limit = 1"].hasTag(shootTag)] += 1
         streak[self] = 0
         deaths[self] += 1
+        If(!self.hasTag(shootTag)) {
+            coins[self] += 100
+            If(randomMode eq 1) {
+                coins[self] += 100
+            }
+        }.Else {
+            deaths[self] += 1
+            coins[self] -= 20
+        }
         tellraw(
             'a'[""],
             """{"nbt":"death", "storage":"$deathStorage","interpret":true}"""
         )
+        playTaunt()
 
         execute().asat('a'[""].hasTag(shootTag)).run(handleStreak)
         calcKDR()
         execute().asat('a'[""].hasTag(shootTag)).run {
-            calcKDR
+            calcKDR()
             resetAmmo()
             resetCooldown()
         }
+        health[self].reset()
         Sleep(Duration(80))
         respawnFunc()
     }
@@ -132,8 +183,8 @@ val deathEvent = EventManager(dieFunc)
 
 val damageSelf = McMethod("jh1236:health/damage", 1) { (damage) ->
     with(Command) {
-        If(damage gt 0) {
-            damage(self, 1.0, "jh1236:shot")
+        If(damage gt 0 and (self.notHasTag(deadTag))) {
+            damage(self[""].notHasTag(swordStabbed), 1.0, "jh1236:shot")
             Log.info("Damaged ", self, " for ", damage, " damage!!")
             If(self.hasTag(medusaTag) and (damage gt 0)) {
                 resetMedusa()
@@ -142,7 +193,11 @@ val damageSelf = McMethod("jh1236:health/damage", 1) { (damage) ->
             If(self.hasTag(invisTag)) {
                 invisCooldown[self] = 10
             }
-            health[self] -= damage
+            If(!self.hasTag(dummyTag)) {
+                health[self] -= damage
+            }.Else {
+                Log.warn("Dealt ", damage, " damage!")
+            }
             timeSinceHit[self] = 0
             particle(
                 Particles.BLOCK(Blocks.REDSTONE_BLOCK),

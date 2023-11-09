@@ -2,7 +2,7 @@ package gunGame.weapons.impl
 
 import abstractions.PlayerTag
 import abstractions.flow.If
-import abstractions.flow.Tree
+import abstractions.flow.trees.ScoreTree
 import abstractions.hasTag
 import abstractions.notHasTag
 import abstractions.score.Objective
@@ -33,33 +33,53 @@ lateinit var invis: AbstractWeapon
 lateinit var compass: AbstractWeapon
 lateinit var medusa: AbstractWeapon
 const val pi = Math.PI
+val speedyAmmo = PlayerTag("speed_ammo")
+val shotCount = Objective("shotsRemaining")
 val medusaTag = PlayerTag("medusa")
 val invisTag = PlayerTag("invis")
 val invisCooldown = Objective("invis")
-
+val smokeTag = PlayerTag("smoke")
 val resetMedusa = McFunction("jh1236:weapons/secondary/medusa") {
     applyCoolDown(160)
     Command.effect().clear(self, Effects.SLOWNESS)
     medusaTag.remove(self)
 }
 
+lateinit var clipOfDexterity: AbstractCoasWeapon
+
+
 private fun loadPistol() {
     pistol =
         RaycastBuilder("Pistol", 600).withCooldown(.15).withClipSize(6).withReload(1.0).addParticle(Particles.CRIT)
             .addSound("ui.loom.select_pattern", 2.0).withCustomModelData(101).withRange(50).asSecondary()
             .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was popped by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
+            .withRange(200)
             .done()
 }
 
 private fun loadCompass() {
     compass = object : AbstractWeapon("Compass", 0, true) {
+        init {
+            val lore = arrayListOf(
+                """{"text" : "Damage: 0", "color": "gray", "italic" : false}""",
+                """{"text" : "Points to the nearest player", "color": "gray", "italic" : false}"""
+            )
+            val nbt = """{jh1236:{weapon:$myId}}"""
+            lootTable = LootTableGenerator.genLootTable(basePath, Items.COMPASS, name, lore, nbt)
+            setupInternal()
+        }
+
         val func = McFunction(basePath) {
             Command.execute().anchored(Anchor.EYES)
                 .facing('a'["limit = 1", "sort = nearest", "distance = .5.."].hasTag(playingTag), Anchor.EYES)
                 .positioned(loc(0, -.5, .25)).run {
                     raycast(
                         .25f,
-                        { Command.particle(Particles.ELECTRIC_SPARK, rel(), 0, 0, 0, 0, 1).force(self) },
+                        {
+
+                            Command.particle(Particles.ELECTRIC_SPARK, rel(), 0, 0, 0, 0, 1).force(self)
+
+                        },
                         { },
                         4
                     )
@@ -74,13 +94,6 @@ private fun loadCompass() {
         }
 
 
-        override fun give(player: Selector) {
-            Command.give(
-                self,
-                Items.COMPASS.nbt("""{jh1236:{weapon:$myId}, display : {Name:'{"text":"Tracking Compass", "italic":false}'}}""")
-            )
-        }
-
     }
 }
 
@@ -92,7 +105,7 @@ private fun loadTp() {
         1.0,
         piercing = true,
         particleArray = arrayListOf(Quad(Particles.FALLING_DUST(Blocks.LIGHT_BLUE_CONCRETE), 1, 0.0, 0.0)),
-        range = -1,
+        range = -40,
         onWallHit = {
             Command.tp(self, loc(0, 0, -.25))
             Command.playsound("entity.enderman.teleport").master(self, rel(), 2.0)
@@ -129,6 +142,8 @@ private fun loadTp() {
         }
 
         init {
+            extraLines.add("""{"text" : "Teleports the user to the indicated position", "color": "gray", "italic" : false}""")
+
             Fluorite.tickFile += {
                 Command.execute()
                     .asat('a'["nbt = {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}", "predicate = jh1236:ready"])
@@ -152,7 +167,7 @@ private fun loadTp() {
 private fun loadPetrify() {
     tomeOfPetrification =
         ProjectileBuilder("Tome of Petrification", 500).withCooldown(2.0).addSound("item.hoe.till", .1)
-            .addParticle(Particles.SQUID_INK).onEntityHit { playerHit, _ ->
+            .addParticle(Particles.SQUID_INK).onEntityHit { playerHit, _, _ ->
                 Command.effect().give(playerHit, Effects.GLOWING, 2, 0, true)
                 Command.effect().give(playerHit, Effects.SLOWNESS, 1, 11, true)
                 Command.effect().give(playerHit, Effects.JUMP_BOOST, 1, 128, true)
@@ -164,11 +179,14 @@ private fun loadPetrify() {
                     Command.playsound("item.trident.thunder").master(playerHit, rel(), 1.0)
                     Command.playsound("entity.enderman.scream").master(playerHit, rel(), 1.0)
                 }
-            }.withProjectile(15).withSplash(0.5).onWallHit {
+            }.withProjectile(3.75).withSplash(0.5).onWallHit {
                 Command.particle(Particles.SQUID_INK, rel(), 0, 0, 0, .3, 500)
             }.withRange(50).withCustomModelData(106).asSecondary()
             .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was turned to stone by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
             .done()
+
+    tomeOfPetrification.extraLines.add("""{"text":"Applies slowness and glowing on hit, as well as many loud sounds and particles","color" : "gray","italic":false}""")
+
 
 }
 
@@ -176,7 +194,7 @@ private fun loadTraps() {
 
 
     trapPlanter =
-        ProjectileBuilder("Trap Planter", 500).canBeShot().withRange(300).withProjectile(0, 3).onProjectileTick {
+        ProjectileBuilder("Trap Planter", 500).canBeShot().withRange(300).withProjectile(0.0, 3).onProjectileTick {
             If(health[self] gte range - 60) {
                 Command.particle(Particles.DUST(.4, 0.8, 0.9, 0.7), rel(), 0, 0, 0, 1.0, 5)
             }.Else {
@@ -187,7 +205,8 @@ private fun loadTraps() {
                     .hasTag(playingTag)
             ) {
                 Command.execute().asat('a'["distance=..1.5"].notHasTag(shootTag).hasTag(playingTag)).run {
-                    onEntityHit?.let { it1 -> this.it1(self, 'a'[""].hasTag(shootTag)) }
+                    //THIS IS THE WRONG 3rd ARGUMENT!!
+                    onEntityHit?.let { it1 -> this.it1(self, 'a'[""].hasTag(shootTag), self) }
                     damageSelf(damage)
                 }
                 Command.kill(self)
@@ -196,7 +215,7 @@ private fun loadTraps() {
             .withActivationDelay(3.0)
             .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was trapped by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
             .withCooldown(3.0).withCustomModelData(108).addSound("minecraft:ui.stonecutter.take_result", 0.8)
-            .onEntityHit { _, _ ->
+            .onEntityHit { _, _, _ ->
                 Command.effect().give(self, Effects.BLINDNESS, 2, 0, true)
                 Command.effect().give(self, Effects.SLOWNESS, 2, 11, true)
                 Command.effect().give(self, Effects.JUMP_BOOST, 2, 128, true)
@@ -212,6 +231,9 @@ private fun loadTraps() {
                 )
 
             }.asSecondary().done()
+
+    trapPlanter.extraLines.add("""{"text":"Locks the target in place when activated","color" : "gray","italic":false}""")
+
     Fluorite.tickFile += {
 
         Command.execute().asat('a'[""].hasTag(playingTag)).run {
@@ -232,8 +254,8 @@ private fun loadTraps() {
 
 private fun loadAura() {
 
+
     smokeCloud = object : AbstractWeapon("Sinister Aura", 0, true) {
-        val smokeTag = PlayerTag("smoke")
 
         private fun smoke(radius: Double) {
             Command.execute().anchored(Anchor.EYES).run.particle(
@@ -274,9 +296,6 @@ private fun loadAura() {
 
         init {
             secondary = true
-            deathEvent += {
-                smokeTag.remove(self)
-            }
             Fluorite.tickFile += {
                 Command.execute().asat('a'[""]).If(self.data["{Inventory:[{tag:{jh1236:{weapon:$myId}}}]}"]).run {
                     Command.execute().As('a'["distance = 0.1.."].hasTag(playingTag)).run { smoke(.7) }
@@ -287,13 +306,32 @@ private fun loadAura() {
 
                 Command.execute().asat('e'[""].hasTag(smokeTag)).run { smokeTick() }
             }
-        }
-
-        override fun give(player: Selector) {
-            Command.give(
-                self,
-                Items.BLACK_DYE.nbt("""{jh1236:{weapon:$myId}, display:{Name:'{"text":"Sinister Aura","italic":false}'}}""")
+            val lore = arrayListOf(
+                """{"text" : "Damage: 0", "color": "gray", "italic" : false}""",
+                """{"text" : "Creates a shroud of darkness around you", "color": "gray", "italic" : false}""",
+                """{"text" : "Press Q whilst holding to throw the cloud away", "color": "gray", "italic" : false}"""
             )
+            val nbt = """{jh1236:{weapon:$myId}}"""
+            lootTable = LootTableGenerator.genLootTable(basePath, Items.BLACK_DYE, name, lore, nbt)
+            spawnFuncTemp.append {
+                Command.execute().align("xyz").run.summon(
+                    Entities.ITEM,
+                    rel(.5, .25, .5),
+                    "{NoGravity:1b,Age:-32768,PickupDelay:32767,Tags:[\"temp\",\"edit\",\"safe\"],Item:{id:\"minecraft:black_dye\",Count:1b}}"
+                )
+                Command.tag('e'["tag = edit"]).remove("edit")
+                Command.execute().align("xyz").run.summon(
+                    Entities.TEXT_DISPLAY,
+                    rel(0.5, 1.0, 0.5),
+                    "{billboard:\"center\",default_background:1b,Tags:[\"hg\", temp],text:'{\"text\":\"${
+                        name.replace(
+                            "\'",
+                            "\\\'"
+                        )
+                    }\"}'}"
+                )
+            }
+
         }
 
     }
@@ -307,7 +345,7 @@ private fun loadMedusa() {
             val gt = Fluorite.reuseFakeScore("gametime")
             gt.set { Command.time().query.gametime }
             gt %= 50
-            Tree(gt, 0..50) {
+            ScoreTree(gt, 0..50) {
                 val y = kotlin.math.abs(2 - ((it.toDouble() / 12.5) % 4))
                 val coords = rel(.7 * cos(8 * (it.toDouble() * pi) / 50), y, .7 * sin(8 * (it.toDouble() * pi) / 50))
                 val coords2 = rel(.7 * sin(8 * ((25 + it) * pi) / 50), y, .7 * cos(8 * ((25 + it) * pi) / 50))
@@ -338,19 +376,20 @@ private fun loadMedusa() {
                     }
                 }
             }
-        }
-
-        override fun give(player: Selector) {
-            Command.give(
-                player,
-                Items.GUNPOWDER.nbt("{jh1236:{weapon:$myId}, display : {Name:'{\"text\":\"Medusa\\'s curse\", \"italic\":false}'}}")
+            val lore = arrayListOf(
+                """{"text" : "Damage: 0", "color": "gray", "italic" : false}""",
+                """{"text" : "Cooldown: 8.0 seconds", "color": "gray", "italic" : false}""",
+                """{"text" : "Slows the player, but reduces damage taken by 90%", "color": "gray", "italic" : false}"""
             )
+            val nbt = """{jh1236:{weapon:$myId}}"""
+            lootTable = LootTableGenerator.genLootTable(basePath, Items.GUNPOWDER, name, lore, nbt)
+            setupInternal()
         }
     }
 }
 
 private fun loadInvis() {
-    invis = object : AbstractWeapon("stealth", 0, true) {
+    invis = object : AbstractWeapon("Veil of Stealth", 0, true) {
 
         private val invisHurt = PlayerTag("invisHurt")
         val func = McFunction(basePath) {
@@ -399,15 +438,15 @@ private fun loadInvis() {
                 Command.execute().asat('a'["nbt =! {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}"].hasTag(invisTag))
                     .run(endFunc)
             }
-        }
-
-
-        override fun give(player: Selector) {
-            Command.give(
-                self,
-                Items.SUGAR.nbt("""{jh1236:{weapon:$myId}, display : {Name:'{"text":"Veil Of Stealth", "italic":false}'}}""")
+            val lore = arrayListOf(
+                """{"text" : "Damage: 0", "color": "gray", "italic" : false}""",
+                """{"text" : "Turns the player invisible, but caps their health at 1000", "color": "gray", "italic" : false}"""
             )
+            val nbt = """{jh1236:{weapon:$myId}}"""
+            lootTable = LootTableGenerator.genLootTable(basePath, Items.SUGAR, name, lore, nbt)
+            setupInternal()
         }
+
 
     }
 }
@@ -417,10 +456,9 @@ private fun loadLeap() {
         object : ProjectileWeapon(
             "Tome of Propulsion",
             0, 111, 1.8,
+            range = -80,
             projectileEntity = Entities.BEE,
-            projectileSpeed = 3,
             particleArray = listOf(Quad(Particles.SCRAPE, 1, 0, 0)),
-            secondary = true,
             onWallHit = {
                 Command.playsound("minecraft:entity.generic.extinguish_fire").master('a'[""], rel(), .6, 1.0)
                 Command.particle(Particles.TOTEM_OF_UNDYING, rel(), .2, .2, .2, 1.0, 100)
@@ -435,7 +473,10 @@ private fun loadLeap() {
                 If(passengerCount eq 0) {
                     health[self] = 0
                 }
-            }
+            },
+            projectileSpeed = .75,
+            secondary = true,
+            projectileNBT = ""
         ) {
             private fun calcDistance(): Score {
                 val distance = Fluorite.reuseFakeScore("distance")
@@ -461,6 +502,7 @@ private fun loadLeap() {
             }
 
             init {
+                extraLines.add("""{"text":"Mounts the player on a rideable bee","color" : "gray","italic":false}""")
                 Fluorite.tickFile += {
                     Command.execute()
                         .asat('a'["nbt = {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}", "predicate = jh1236:ready"])
@@ -489,23 +531,58 @@ private fun loadTome() {
         Command.particle(Particles.CLOUD, rel(), 0.1, 0.1, 0.1, 1.0, 20)
         Command.playsound("minecraft:item.firecharge.use").master('a'[""], rel(), 1.0)
     }
-    tomeOfAir =
+    tomeOfFire =
         ProjectileBuilder("Tome of Fire", 3000).withCooldown(4.0)
             .addParticle(Particles.DUST(.7, 0.1, 0.1, 2.0), 10, .2, .1)
             .addParticle(Particles.FLAME, 10, .2)
-            .withProjectile(1, 1)
+            .withProjectile(.25)
             .withRange(50).withCustomModelData(7).addSound("minecraft:entity.tnt.primed", 1.3).onWallHit {
                 tomeHitsWall()
-            }.onEntityHit { _, _ ->
+            }.onEntityHit { _, _, _ ->
                 tomeHitsWall()
             }.onProjectileTick {
-                Command.execute().lerpFacing('p'[""].notHasTag(shootTag).hasTag(playingTag), 1, 7).run.tp(
+                Command.execute()
+                    .lerpFacing('p'[""].notHasTag(shootTag).hasTag(playingTag).notHasTag(invisTag), 1, 7).run.tp(
                     self, rel(), Vec2("~", "~")
                 )
             }
             .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " got smoked by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
             .asSecondary().done()
+    tomeOfFire.extraLines.add("""{"text":"Seeks out the nearest player","color" : "gray","italic":false}""")
 
+}
+
+fun loadClip() {
+    clipOfDexterity = object : AbstractCoasWeapon("Clip of Dexterity", 0, 113, Score.LOWER * 1.0) {
+        init {
+            cooldownStr = "Reloads on kill"
+            extraLines.add("""{"text":"Reduces cooldown times by 50%", "italic":false, "color":"gray"}""")
+            secondary = true
+            setup()
+            Fluorite.tickFile += {
+                Command.execute().asat('a'[""].hasTag(playingTag)).run {
+                    McFunction("$basePath/ammo") {
+                        val temp = Fluorite.reuseFakeScore("temp")
+                        temp.set(shotCount[self])
+                        temp.maxOf(1)
+                        setAmmoForId(ScoreConstant(myId), temp)
+                    }()
+                }
+            }
+        }
+
+
+        override fun fire() {
+            Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
+            Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
+            Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
+            Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
+            speedyAmmo.add(self)
+            shotCount[self] += 6
+        }
+
+
+    }
 }
 
 
@@ -521,4 +598,5 @@ fun loadSecondaries() {
     loadMedusa()
     loadInvis()
     loadLeap()
+    loadClip()
 }

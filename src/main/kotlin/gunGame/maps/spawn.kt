@@ -19,10 +19,23 @@ import utils.get
 
 val weaponSelectScore = Objective("select")[self]
 val secondarySelectScore = Objective("secnd")[self]
+val randomMode = Fluorite.getNewFakeScore("randomMode")
 lateinit var spawnFunc: McFunction
 
-fun spawnSetup() {
 
+fun spawnSetup() {
+    Trigger("randomMode", 'a'[""]) {
+        randomMode -= 1
+        randomMode *= -1
+        If(randomMode eq 1) {
+            Command.tellraw('a'[""], """{"text":"Random mode has been enabled!", "color":"gold"}""")
+            regenRandom()
+            Command.execute().As('a'["x = -23, y= -6, z = -91", "dx = 19", "dy = 15", "dz = 36"]).run(respawnFunc)
+        }.Else {
+            Command.tellraw('a'[""], """{"text":"Random mode has been disabled!", "color":"red"}""")
+            Command.execute().As('a'["x = -68, y= 17, z = -68", "dx = 11", "dy = 6", "dz = 15"]).run(respawnFunc)
+        }
+    }
 
     val primaryCount = allWeapons.stream().filter { !it.secondary && !it.isReward }.count().toInt()
     val secondaryCount = allWeapons.stream().filter { it.secondary && !it.isReward }.count().toInt()
@@ -45,7 +58,7 @@ fun spawnSetup() {
                 Command.tellraw(self, "No map is selected!")
             }
             .case(1) {
-                Command.spreadplayers(Vec2(8, 8), 9, 9.0).under(10, false, self)
+                Command.spreadplayers(Vec2(164, -93), 9, 9.0).under(10, false, self)
             }.case(2) {
                 Command.tp(self, 'e'["tag = spawn_mansion", "limit = 1", "sort = random"])
             }.case(3) {
@@ -56,6 +69,20 @@ fun spawnSetup() {
                 Command.tp(self, 'e'["tag = spawn_japan", "limit = 1", "sort = random"])
             }.case(6) {
                 Command.tp(self, 'e'["tag = spawn_spain", "limit = 1", "sort = random"])
+            }.case(7) {
+                Command.tp(self, 'e'["tag = spawn_tower", "limit = 1", "sort = random"])
+            }.case(8) {
+                Command.tp(self, 'e'["tag = spawn_valley", "limit = 1", "sort = random"])
+            }.case(9) {
+                Command.tp(self, 'e'["tag = spawn_tree", "limit = 1", "sort = random"])
+            }.case(10) {
+                Command.tp(self, 'e'["tag = spawn_warehouse", "limit = 1", "sort = random"])
+            }.case(11) {
+                Command.tp(self, 'e'["tag = spawn_skyblock", "limit = 1", "sort = random"])
+            }.case(12) {
+                Command.tp(self, 'e'["tag = spawn_volcano", "limit = 1", "sort = random"])
+            }.case(13) {
+                Command.tp(self, 'e'["tag = spawn_city", "limit = 1", "sort = random"])
             }
     }
 

@@ -4,9 +4,8 @@ import abstractions.PlayerTag
 import abstractions.advancements.Advancement
 import abstractions.advancements.EntityHurtPlayer
 import abstractions.flow.If
-import abstractions.flow.Tree
+import abstractions.flow.trees.ScoreTree
 import abstractions.hasTag
-import abstractions.schedule.Sleep
 import abstractions.score.Criteria
 import abstractions.score.Objective
 import commands.Command
@@ -15,76 +14,87 @@ import enums.Blocks
 import enums.Entities
 import enums.Items
 import gunGame.damageSelf
-import gunGame.deadTag
+import gunGame.deathStorage
 import gunGame.playingTag
 import gunGame.self
 import gunGame.weapons.AbstractWeapon
+import gunGame.weapons.LootTableGenerator
 import gunGame.weapons.shootTag
+import internal.commands.impl.execute.OnTarget
 import lib.random.Random
 import structure.Fluorite
 import structure.McFunction
-import utils.*
+import utils.Vec2
+import utils.get
+import utils.loc
+import utils.rel
 
 val ninjaScore = Objective("useIronSword", Criteria.useItem(Items.IRON_SWORD))
 val traceScore = Objective("trace")
 val swordScore = Objective("useStoneSword", Criteria.useItem(Items.STONE))
 val stabbed = PlayerTag("stabbed")
+val swordStabbed = PlayerTag("swordStabbed")
 
-fun parity(int: Int): Int = if (int % 2 == 0) 1 else -1
+fun sign(int: Int): Int = if (int % 2 == 0) 1 else -1
 
-val tryTp = McFunction("ninja_sword/try_tp") {
-    traceScore[self] = 6
-    Tree(Random.next.rem(6), 0..5) {
-        Command.execute().anchored(Anchor.EYES).facing(
-            'a'["sort = nearest", "limit=1", "distance = 0.1..4"].hasTag(playingTag),
-            Anchor.FEET
-        ).positioned('a'["sort = nearest", "limit=1", "distance = 0.1..4"].hasTag(playingTag)).rotated(
-            Vec2("~${parity(it) * ((it / 2) * 30 - 150)}", "0")
-        ).run {
-            Command.function("jh1236:ninja_sword/tp")
-        }
-    }
-}
-
-val tp = McFunction("ninja_sword/tp") {
-    val retScore = Fluorite.reuseFakeScore("test", 0)
-    retScore.set {
-        Command.execute()
-            .If(loc(0, 0, -.5) isBlock Blocks.AIR)
-            .If(loc(0, 0, -1) isBlock Blocks.AIR)
-            .If(loc(0, 0, -1.5) isBlock Blocks.AIR)
-            .If(loc(0, 0, -2) isBlock Blocks.AIR)
-        If(retScore eq 0) {
-            Command.tp(self, loc(0, 0, -.25), Vec2("~", "~-30"))
-        }.Else {
-            tryTp()
-        }
-    }
-}
 
 fun loadNinjaSword() {
 
-
-    val ninjaSword = object : AbstractWeapon("ninja_sword", 1000) {
-
-
-        override fun give(player: Selector) {
-            Command.give(self, Items.IRON_SWORD.nbt("{jh1236:{weapon:$myId}}"))
+    val ninjaSword = object : AbstractWeapon("Ninja Sword", 1000) {
+        init {
+            val lore = arrayListOf(
+                """{"text" : "Damage: 1000", "color": "gray", "italic" : false}""",
+                """{"text" : "Teleports the player around its target on hit", "color": "gray", "italic" : false}"""
+            )
+            val nbt = """{HideFlags:63, Unbreakable: 1b, jh1236:{weapon:$myId} }"""
+            lootTable = LootTableGenerator.genLootTable(basePath, Items.IRON_SWORD, name, lore, nbt)
+            setupInternal()
         }
-
     }
 
-    val hitFunc = McFunction("ninja_sword/hit") {
-        Sleep(Duration(1))
-        shootTag.add('a'["scores = {$ninjaScore = 1..}"])
+    val tryTp = McFunction("${ninjaSword.basePath}/try_tp") {
+        traceScore[self] = 6
+        ScoreTree(Random.next(6), 0..5) {
+            Command.execute().anchored(Anchor.FEET).facing(
+                'a'["sort = nearest", "limit=1"].hasTag(stabbed).hasTag(playingTag), Anchor.FEET
+            ).positioned('a'["sort = nearest", "limit=1"].hasTag(stabbed).hasTag(playingTag)).facing(loc(0, 0, -1))
+                .rotated(
+                    Vec2("~${sign(it) * ((it / 2) * 30 - 150)}", "0")
+                ).run {
+                    Command.function("${ninjaSword.basePath}/tp")
+                }
+        }
+    }
+
+    val tp = McFunction("${ninjaSword.basePath}/tp") {
+        val retScore = Fluorite.reuseFakeScore("test", 0)
+        retScore.set {
+            Command.execute().If(loc(0, 0, .5) isBlock Blocks.AIR).If(loc(0, 0, 1) isBlock Blocks.AIR)
+                .If(loc(0, 0, 1.5) isBlock Blocks.AIR).If(loc(0, 0, 2) isBlock Blocks.AIR)
+            If(retScore eq 0) {
+                Command.tp(self, loc(0, 0, 1.5), Vec2("~", "~-30"))
+            }.Else {
+                tryTp()
+            }
+        }
+    }
+
+
+    val hitFunc = McFunction("${ninjaSword.basePath}/hit") {
+        Command.execute().on(OnTarget.ATTACKER).run {
+            shootTag.add(self)
+        }
+        deathStorage["death"] =
+            """'["",{"selector": "@s","color": "gold"},{"text": " didn\'t even see "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'"""
+        swordStabbed.add(self)
         damageSelf(ninjaSword.damage)
+        swordStabbed.remove(self)
         ninjaScore['a'[""]] = 0
         stabbed.add(self)
         Command.execute().asat('a'[""].hasTag(shootTag)).run {
             tryTp()
             shootTag.remove(self)
         }
-        stabbed.remove(self)
         Command.advancement().revoke(self).only("jh1236:ninja_hit")
     }
 
@@ -112,25 +122,53 @@ fun loadNinjaSword() {
             function = hitFunc
         }
     }
+    Fluorite.tickFile += {
+        Command.execute().asat('a'["scores = {$traceScore = 1..}"]).run {
+            // TODO: stop being lazy
+//            Command.raw("execute anchored eyes facing entity @e[tag=$stabbed,sort=nearest,limit=1, tag =! $deadTag] feet run tp @s ~ ~ ~ ~ ~-30")
+            Command.execute().anchored(Anchor.EYES)
+                .facing('e'["sort = nearest, limit = 1"].hasTag(stabbed), Anchor.FEET).run.tp(
+                    self,
+                    rel(),
+                    Vec2("~", "~-30")
+                )
+            traceScore[self] -= 1
+            If(traceScore[self] eq 0) {
+                stabbed.remove('e'["sort=nearest", "limit=1"].hasTag(stabbed))
+            }
+        }
+        swordScore['a'[""]] = 0
+        ninjaScore['a'[""]] = 0
+    }
 
 }
 
 fun stoneSword() {
     val sword = object : AbstractWeapon("Stone Sword", 600, true) {
-        override fun give(player: Selector) {
-            Command.give(self, Items.STONE_SWORD.nbt("{jh1236:{weapon:$myId}}"))
+        init {
+            val lore = arrayListOf(
+                """{"text" : "Damage: 600", "color": "gray", "italic" : false}""",
+            )
+            val nbt = """{HideFlags:63, Unbreakable: 1b, jh1236:{weapon:$myId} }"""
+            lootTable = LootTableGenerator.genLootTable(basePath, Items.STONE_SWORD, name, lore, nbt)
+            setupInternal()
         }
 
     }
-    val swordHitFunc = McFunction("sword/hit") {
-        Sleep(Duration(1))
-        shootTag.add('a'["scores = {$swordScore = 1..}"])
+    val swordHitFunc = McFunction("${sword.basePath}/hit") {
+        Command.execute().on(OnTarget.ATTACKER).run {
+            shootTag.add(self)
+        }
+        swordStabbed.add(self)
+        deathStorage["death"] =
+            """'["",{"selector": "@s","color": "gold"},{"text": " was cut down by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'"""
         damageSelf(sword.damage)
-        swordScore['a'[""]] = 0
+        swordStabbed.remove(self)
         Command.execute().asat('a'[""].hasTag(shootTag)).run {
             shootTag.remove(self)
         }
         Command.advancement().revoke(self).only("jh1236:sword_hit")
+
     }
 
     Advancement("jh1236:sword_hit") {
@@ -158,15 +196,5 @@ fun stoneSword() {
         }
     }
 
-    Fluorite.tickFile += {
-        Command.execute().asat('a'["scores = {$traceScore = 1..}"]).run {
-            // TODO: stop being lazy
-            Command.raw("execute anchored eyes facing entity @e[tag=$stabbed,sort=nearest,limit=1, tag =! $deadTag] feet run tp @s ~ ~ ~ ~ ~-30")
-            traceScore[self] -= 1
-            If(traceScore[self] eq 0) {
-                Command.tag('e'["sort=nearest", "limit=1"].hasTag(stabbed))
-            }
-        }
-    }
 
 }

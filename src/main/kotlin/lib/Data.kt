@@ -13,7 +13,7 @@ private class ItemData(blank: Boolean = false) : DataProvider("block $storeBlock
         super.sourceString
     }
 
-    override fun get(path: String, scale: Double): Data {
+    override fun get(path: String, scale: Number): Data {
         if (path.trim().isBlank()) {
             return Data(ItemData(true), path)
         }

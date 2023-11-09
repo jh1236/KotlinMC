@@ -38,7 +38,7 @@ fun raycastEntity(
     count: Int = -1,
     onWallHit: (() -> Unit)? = null
 ) {
-    if (count >= 0) {
+    if (count > 0) {
         rangeScore.set(count)
     }
     with(Command) {

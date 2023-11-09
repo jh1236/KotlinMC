@@ -1,217 +1,71 @@
 package gunGame.weapons.impl
 
-import abstractions.PlayerTag
+import FlameThrower
 import abstractions.flow.If
 import abstractions.hasTag
-import abstractions.notHasTag
 import abstractions.score.Objective
-import abstractions.score.ScoreConstant
+import abstractions.score.Score
 import commands.Command
-import enums.Blocks
-import enums.Entities
-import enums.Items
+import enums.Anchor
 import enums.Particles
-import gunGame.*
+import gunGame.self
 import gunGame.weapons.*
-import lib.random.Random
-import structure.Fluorite
-import structure.McFunction
+import lib.Delta
+import lib.debug.Log
+import utils.Vec2
 import utils.get
-import utils.rel
 
-lateinit var clipOfDexterity: AbstractCoasWeapon
-lateinit var mines: ProjectileWeapon
-lateinit var flameThrower: AbstractCoasWeapon
+lateinit var grapple: ProjectileWeapon
+lateinit var carabine: RaycastWeapon
 
-val speedyAmmo = PlayerTag("speed_ammo")
-val shotCount = Objective("shotsRemaining")
-
-
-fun loadClip() {
-    clipOfDexterity = object : AbstractCoasWeapon("Clip of Dexterity", 0, 113, -1.0) {
-        init {
-            secondary = true
-            setup()
-            Fluorite.tickFile += {
-                Command.execute().asat('a'[""].hasTag(playingTag)).run {
-                    McFunction("$basePath/ammo") {
-                        val temp = Fluorite.reuseFakeScore("temp")
-                        temp.set(shotCount[self])
-                        temp.maxOf(1)
-                        setAmmoForId(ScoreConstant(myId), temp)
-                    }()
-                }
-            }
-        }
-
-
-        override fun fire() {
-            Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
-            Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
-            Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
-            Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1.0, 0.0)
-            speedyAmmo.add(self)
-            shotCount[self] += 6
-        }
-
-
-    }
-}
-
-fun loadLandMines() {
-    fun projectileTick(range: Int, activationDelay: Int, id: Int) {
-        with(Command) {
-            If(health[self] gt range - activationDelay) {
-                particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(), 0, 0, 0, 1.0, 5)
-            }.ElseIf(health[self] gte 100) {
-                If(health[self].rem(40) eq 0) {
-                    particle(Particles.DUST(1.0, 0.0, 0.0, 1.0), rel(0, 0.2, 0), 0, 0, 0, 1.0, 5)
-                    playsound("minecraft:block.note_block.bit").master('a'[""], rel(), .1, 1.0)
-                }.Else {
-                    particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(), 0, 0, 0, 1.0, 5)
-                }
-            }.ElseIf(health[self] gte 40) {
-                If(health[self].rem(10) eq 0) {
-                    particle(Particles.DUST(1.0, 0.0, 0.0, 1.0), rel(0, 0.2, 0), 0, 0, 0, 1.0, 5)
-                    playsound("minecraft:block.note_block.bit").master('a'[""], rel(), .3, 1.0)
-                }.Else {
-                    particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(), 0, 0, 0, 1.0, 5)
-                }
-            }.ElseIf(health[self] gte 20) {
-                If(health[self].rem(5) eq 0) {
-                    particle(Particles.DUST(1.0, 0.0, 0.0, 1.0), rel(0, 0.2, 0), 0, 0, 0, 1.0, 5)
-                    playsound("minecraft:block.note_block.bit").master('a'[""], rel(), 1.0, 2.0)
-                }.Else {
-                    particle(Particles.DUST(0.6, 0.3, 0.3, 1.0), rel(), 0, 0, 0, 1.0, 5)
-                }
-            }.Else {
-                particle(Particles.DUST(1.0, 0.0, 0.0, 2.0), rel(), 0, 0, 0, 1.0, 5)
-                playsound("minecraft:block.note_block.bit").master('a'[""], rel(), 1.0, 2.0)
-            }
-            If('e'["distance=..5"].notHasTag(shootTag).hasTag(playingTag)) {
-                val gt = Fluorite.reuseFakeScore("gametime")
-                gt.set { time().query.gametime }
-                gt %= 4
-                If(gt eq 0) {
-                    execute().As('a'["nbt = {SelectedItem:{tag:{jh1236:{weapon:$id}}}}"].hasTag(shootTag)).run {
-                        execute().at(self).run.playsound("minecraft:block.note_block.didgeridoo").master(
-                            self, rel(), 1.0, 2.0
-                        )
+fun loadGrapplingHook() {
+    val strength = Objective("strength")
+    val trueCooldown = 3.5
+    grapple =
+        ProjectileBuilder("Grappling Hook", 0).addParticle(Particles.DUST(0.0, 0.0, 0.0, 1.0)).withRange(50)
+            .withProjectile(3.0).asSecondary()
+            .withCooldown(9999.0).onWallHit {
+                Command.execute().asat(it)
+                    .facing('e'["limit = 1"].hasTag(ProjectileWeapon.currentProjectile), Anchor.FEET).rotated(
+                        Vec2("~", "~-10")
+                    ).run {
+                        If(ProjectileWeapon.hit eq 1) {
+                            setCooldownForId(this.myId, (trueCooldown * 20).toInt())
+                            Delta.launchFacing(strength['e'["limit = 1"].hasTag(ProjectileWeapon.currentProjectile)])
+                        }.Else {
+                            setCooldownForId(this.myId, 0)
+                            Command.playsound("minecraft:block.note_block.didgeridoo").master(self)
+                        }
                     }
-
+            }.onProjectileSpawn {
+                Command.execute().asat(it).run {
+                    applyCoolDown(Score.LOWER)
                 }
-            }
-        }
+                strength[self] = 16000
+                Log.info(strength[self])
+            }.onProjectileTick {
+                Command.playsound("minecraft:item.crossbow.loading_middle").master(it)
+                strength[self] += 10
+                this.cooldownStr = "$trueCooldown seconds"
+            }.addSound("minecraft:entity.fishing_bobber.throw", .8)
+            .addSound("minecraft:entity.fishing_bobber.retrieve", .5)
+            .withCustomModelData(115).done()
 
-    }
-
-
-
-    mines = ProjectileBuilder("Mine", 10000)
-
-        .withRange(30 * 5).canHitOwner().withProjectile(0, 5).withActivationDelay(2.0).withSplash(8.0)
-        .onProjectileTick {
-            If(health[self] inRange range - activationDelay..range - activationDelay + 3) {
-                Command.execute()
-                    .asat('a'["nbt = {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}"].hasTag(shootTag)).run.playsound("minecraft:block.note_block.xylophone")
-                    .master(self, rel(), 1.0, 1.8)
-            }
-            projectileTick(range, activationDelay, myId)
-        }.withCooldown(3.0).withCustomModelData(11).canBeShot().addSound("minecraft:block.anvil.use", 0.7)
-        .onEntityHit { _, _ ->
-            bigExplosion()
-        }
-        .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was blown to smithereens by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
-        .onWallHit {
-            bigExplosion()
-        }.done()
-    val detonateFunc = McFunction("weapons/primary/mine/detonate") {
-        Command.tag(self).add("safe")
-        self.data["{}"] = "{PickupDelay:0s}"
-
-        val uuidScore = Fluorite.reuseFakeScore("uuid")
-        uuidScore.set(self.data["Thrower[0]"])
-        Command.execute().As('a'[""]).run {
-            val myUUID = Fluorite.reuseFakeScore("uuid1")
-            myUUID.set(self.data["UUID[0]"])
-            If(uuidScore eq myUUID) {
-                Command.clear(self, Items.CARROT_ON_A_STICK.nbt("{jh1236:{weapon:${mines.myId}}}"))
-                val tempScore = Fluorite.reuseFakeScore("id")
-                tempScore.set(idScore[self])
-                Command.execute().asat('e'[""].hasTag(mines.projectile)).If(idScore[self] eq tempScore)
-                    .If(health[self] lt mines.range - mines.activationDelay).run {
-                        playingTag.remove(self)
-                        health[self] = 5
-                    }
-            }
-        }
-    }
-    Fluorite.tickFile += {
-        Command.execute().asat('e'["type = item", "nbt = {Item:{tag:{jh1236:{weapon:${mines.myId}}}}}"])
-            .run(detonateFunc)
-        Command.execute().asat('a'[""].hasTag(playingTag)).run {
-            McFunction("${mines.basePath}/ammo") {
-                val countScore = Fluorite.reuseFakeScore("temp", 0)
-                val tempScore = Fluorite.reuseFakeScore("id")
-                tempScore.set(idScore[self])
-                Command.execute().As('e'[""].hasTag(mines.projectile)).If(idScore[self] eq tempScore).run {
-                    countScore += 1
-                }
-                countScore.maxOf(1)
-                setAmmoForId(ScoreConstant(mines.myId), countScore)
-            }()
-        }
-    }
 }
 
-fun loadFlameThrower() {
-    flameThrower = object : ProjectileWeapon(
-        "Flame Thrower",
-        500,
-        0,
-        1.0,
-        projectileSpeed = 2,
-        particleArray = listOf(),
-        projectileEntity = Entities.BLOCK_DISPLAY
-    ) {
-        init {
-            onProjectileTick = {
-                If(health[self].rem(20) eq 10) {
-                    self.data["block_state.Name"] = "\"minecraft:tnt\""
-                }.ElseIf(health[self].rem(20) eq 0) {
-                    self.data["block_state.Name"] = "\"minecraft:white_concrete\""
-                }
-            }
 
-            onWallHit = {
-                Command.playsound("minecraft:entity.generic.explode").master('a'[""], rel(), 0.1)
-                Command.particle(Particles.FALLING_DUST(Blocks.GRAY_CONCRETE_POWDER), rel(), 0.05, 0.05, 0.05, 0.01, 5)
-                Command.kill(self)
-            }
-            splashRange = 5.0
-            spread = 3.0
-
-            projectilesPerShot = 10
-            setup()
-        }
-
-        override fun fire() {
-            super.fire()
-            val processed = PlayerTag("tntProcessed")
-            Command.execute().asat('e'[""].hasTag(projectile).notHasTag(processed)).run {
-                health[self] = Random.next(20).add(20).add(Random.next(20))
-                processed.add(self)
-                self.data["{}"] = "{transformation:{scale:[.3f,.3f,.3f]}, block_state:{Name:\"tnt\"}}"
-            }
-        }
-
-    }
+fun loadCarbine() {
+    carabine =
+        RaycastBuilder("Carbine", 700).addParticle(Particles.CRIT).withReload(1.5).withCooldown(0.15).withClipSize(10)
+            .addSound("minecraft:entity.camel.dash_ready", 1.0).withRange(200)
+            .withKillMessage("""'["",{"selector": "@s","color": "gold"},{"text": " was filled with bullets by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""")
+            .withCustomModelData(15)
+            .done()
 }
-
 
 fun loadExperiments() {
-    loadClip()
-    loadLandMines()
-    Raygun()
-    loadFlameThrower()
+    FlameThrower()
+    loadGrapplingHook()
+    loadCarbine()
+    Minigun()
 }

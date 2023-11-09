@@ -7,7 +7,6 @@ import abstractions.notHasTag
 import abstractions.score.Objective
 import commands.Command
 import enums.Anchor
-import enums.Effects
 import enums.Particles
 import gunGame.lagTag
 import gunGame.playingTag
@@ -19,21 +18,22 @@ import structure.McFunction
 import utils.get
 import utils.loc
 import utils.rel
+import kotlin.math.roundToInt
 
-val minigunScore = Objective("minigunRC")
+val smgScore = Objective("smgRC")
 
 
-class Minigun : RaycastWeapon(
-    "Minigun",
-    400,
-    16,
+class SMG : RaycastWeapon(
+    "SMG",
+    300,
+    4,
     -0.5,
+    40,
+    1.5,
     sound = listOf("block.note_block.hat" to 2.0),
     range = 400,
-    spread = 2.0,
-    clipSize = 60,
-    reloadTime = 3.0,
-    killMessage = """'["",{"selector": "@s","color": "gold"},{"text": " was mowed down by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""",
+    spread = 3.0,
+    killMessage = """'["",{"selector": "@s","color": "gold"},{"text": " was peppered down by "},{"selector": "@a[tag=$shootTag]","color": "gold"}]'""",
     secondary = false,
 ) {
 
@@ -49,31 +49,30 @@ class Minigun : RaycastWeapon(
         showShooterParticle = false
         SMG.myId = myId
         Fluorite.tickFile += {
-            minigunScore['a'["scores = {$minigunScore = 1..}"].hasTag(playingTag)] -= 1
+            smgScore['a'["scores = {$smgScore = 1..}"].hasTag(playingTag)] -= 1
             Command.execute()
                 .asat(
-                    'a'["nbt =! {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}"].hasTag(minigunTag)
+                    'a'["nbt =! {SelectedItem:{tag:{jh1236:{weapon:$myId}}}}"].hasTag(
+                        playingTag
+                    ).hasTag(minigunTag)
                 )
                 .run {
-                    Command.effect().clear(self, Effects.SLOWNESS)
-                    resetAmmoForId(myId)
-                    setCooldownForId(myId, (reload * 20).toInt())
+                    setCooldownForId(myId, 10)
                     minigunTag.remove(self)
-                    minigunScore[self] = 0
+                    smgScore[self] = 0
                 }
-            Command.execute().asat('a'["scores = {$minigunScore = 2..}", "predicate = jh1236:ready"].hasTag(playingTag))
+            Command.execute().asat('a'["scores = {$smgScore = 2..}", "predicate = jh1236:ready"].hasTag(playingTag))
                 .anchored(Anchor.EYES).run {
                     minigunTag.add(self)
+                    decrementClip(0,0)
                     fireFunc()
                 }
-            Command.execute().asat('a'["scores = {$minigunScore = 1}", "predicate = jh1236:ready"].hasTag(playingTag))
+            Command.execute().asat('a'["scores = {$smgScore = 1}", "predicate = jh1236:ready"].hasTag(playingTag))
                 .run {
-                    Command.effect().clear(self, Effects.SLOWNESS)
-                    resetAmmoForId(myId)
-                    applyCoolDown((reload * 20).toInt())
+                    applyCoolDown(10)
                     minigunTag.remove(self)
                     Log.info(self.data["SelectedItem.tag.jh1236.ammo.value"])
-                    minigunScore[self] = 0
+                    smgScore[self] = 0
                 }
         }
         this.onRaycastTick = {
@@ -101,16 +100,25 @@ class Minigun : RaycastWeapon(
     }
 
     override fun fire() {
-        minigunScore[self] = 8
+        smgScore[self] = 8
         minigunTag.add(self)
         fireFunc.append {
             super.fire()
-            Command.effect().give(self, Effects.SLOWNESS, 1, 10, true)
-            If(decrementClip(0, 1) eq 1) {
+            val ammoScore = Fluorite.reuseFakeScore("ammo")
+            ammoScore.set(self.data["SelectedItem.tag.jh1236.ammo.value"])
+            Log.info(ammoScore)
+            If(ammoScore eq clipsize) {
                 applyCoolDown((reload * 20).toInt())
+                Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1, 0.7)
+                Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1, 0.7)
+                Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1, 0.7)
+                Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1, 0.7)
+                Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1, 0.7)
+                Command.playsound("minecraft:item.spyglass.use").master(self, rel(), 1, 0.7)
                 minigunTag.remove(self)
-                minigunScore[self] = 0
-                Command.effect().clear(self, Effects.SLOWNESS)
+                smgScore[self] = 0
+            }.Else {
+                applyCoolDown(2)
             }
         }
         fireFunc()

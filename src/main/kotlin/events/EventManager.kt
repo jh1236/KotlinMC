@@ -21,7 +21,7 @@ open class EventManager(function: McFunction) {
         eventFunc += other
     }
 
-    operator fun plusAssign(other: BaseCommand) {
+    operator fun plusAssign(other: BaseCommand<*>) {
         eventFunc += other
     }
 }

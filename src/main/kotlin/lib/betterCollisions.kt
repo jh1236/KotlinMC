@@ -617,8 +617,6 @@ val doesCollide = ReturningMethod("Lach993:collision_check", 0) {
                 If(y inRange 32..87) {
                     If(x inRange 32..68 and (z inRange 32..68)) {
                         retScore.set(1)
-                        Command.playsound("block.bell.use")
-                            .player('a'[""], rel(), 2)
                     }
                 }
                 If(rel() isBlock Blocks.BELL.nbt("[attachment=floor]")) {

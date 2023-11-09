@@ -13,19 +13,19 @@ import gunGame.self
 import lib.debug.Log
 import structure.Fluorite
 import structure.McFunction
-import utils.Selector
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 abstract class AbstractCoasWeapon(
     name: String,
     damage: Int,
-    val customModelData: Int = 0,
+    customModelData: Int = 0,
     val cooldown: Double,
     val clipsize: Int = 1,
     val reload: Double = 0.0,
     secondary: Boolean = false,
     isReward: Boolean = false
-) : AbstractWeapon(name, damage, secondary, isReward) {
+) : AbstractWeapon(name, damage, secondary, isReward, customModelData) {
     companion object {
         val currentId: Score = Fluorite.getNewFakeScore("id")
         val sprayObjective = Objective("spray")
@@ -38,6 +38,12 @@ abstract class AbstractCoasWeapon(
             coasManager = coas
         }
     }
+
+    open var damageStr = abs(damage).toString()
+    open var cooldownStr = abs(cooldown).toString() + " seconds"
+    open var reloadStr = abs(reload).toString() + " seconds"
+    open var clipsizeStr = abs(clipsize).toString()
+    val extraLines = arrayListOf<String>()
 
     val cdBeforeShot = Fluorite.reuseFakeScore("b4shot")
 
@@ -54,6 +60,28 @@ abstract class AbstractCoasWeapon(
                 }
             }
         }
+        val lore = arrayListOf(
+            """{"text" : "Damage: $damageStr", "color": "gray", "italic" : false}"""
+        )
+        if (clipsize > 1) {
+            lore.add("""{"text":"Cooldown: $cooldownStr", "color": "gray", "italic" : false}""")
+            lore.add("""{"text":"Clipsize: $clipsizeStr", "color": "gray", "italic" : false}""")
+            lore.add("""{"text":"Reload Time: $reloadStr", "color": "gray", "italic" : false}""")
+        } else {
+            lore.add("{\"text\":\"Reload Time: $cooldownStr\", \"color\": \"gray\", \"italic\" : false}")
+        }
+        lore.addAll(extraLines)
+        val sb = StringBuilder("{jh1236:{ready:1b, weapon:$myId, cooldown: {value: 0, max : 0}, ")
+        if (clipsize > 1) {
+            sb.append("ammo: {value: $clipsize, max:$clipsize},")
+        }
+        sb.append("}, ")
+        if (customModelData > 0) {
+            sb.append("CustomModelData:${customModelData}, ")
+        }
+        sb.append("}")
+        lootTable = LootTableGenerator.genLootTable(basePath, Items.CARROT_ON_A_STICK, name, lore, sb.toString())
+        setupInternal()
     }
 
     private fun shoot() {
@@ -62,7 +90,7 @@ abstract class AbstractCoasWeapon(
             cdBeforeShot.set(self.data["SelectedItem.tag.jh1236.cooldown.value"])
             if (clipsize != 1) {
                 applyCoolDown(decrementClip((cooldown * 20).roundToInt(), (reload * 20).roundToInt()))
-            } else {
+            } else if (cooldown > 0 || (cooldown * 20).roundToInt() == Score.LOWER) {
                 applyCoolDown((cooldown * 20).roundToInt())
             }
         }
@@ -71,26 +99,7 @@ abstract class AbstractCoasWeapon(
 
     abstract fun fire()
 
-    protected val itemNBT: String
-        get() {
-            val sb = StringBuilder("{jh1236:{ready:1b, weapon:$myId, cooldown: {value: 0, max : 0}, ")
-            if (clipsize > 1) {
-                sb.append("ammo: {value: $clipsize, max:$clipsize},")
-            }
-            sb.append("}, ")
-            if (customModelData > 0) {
-                sb.append("CustomModelData:${customModelData}, ")
-            }
-            sb.append("display:{ Name: '{\"text\":\"$name\",\"italic\" : false}'}, ")
-            sb.append("}")
-            return sb.toString()
-        }
 
-    override fun give(player: Selector) {
-        Command.give(
-            player, Items.CARROT_ON_A_STICK.nbt(itemNBT)
-        )
-    }
 
 
 }
